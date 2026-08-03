@@ -110,21 +110,19 @@ s1.background = { color: BG };
 {
   const x = R + M;
 
-  // 天地：ヒーローは下46%を裁ち落とし
-  const heroY = PH * 0.545;
-  s1.addImage({ path: A + "photo_hero.jpg", x: R, y: heroY, w: PW, h: PH - heroY, sizing: { type: "cover", w: PW, h: PH - heroY } });
-  // ★スクリム：写真を差し替えても白文字の可読性が保たれる
-  s1.addImage({ path: A + "scrim_cover.png", x: R, y: heroY, w: PW, h: PH - heroY });
+  // 全面をヒーローで裁ち落とす。スクリムは上下2枚 —
+  // 中央に光を残しつつ、文字が乗る天地は必ず沈める。
+  s1.addImage({ path: A + "hero_cover.jpg", x: R, y: 0, w: PW, h: PH, sizing: { type: "cover", w: PW, h: PH } });
+  s1.addImage({ path: A + "scrim_top.png", x: R, y: 0, w: PW, h: PH * 0.42 });
+  s1.addImage({ path: A + "scrim_cover.png", x: R, y: 0, w: PW, h: PH });
 
-  // ロゴ
-  s1.addImage({ path: A + "logo_navy.png", x: x, y: M - 0.02, w: 2.42, h: 0.48 });
-
+  s1.addImage({ path: A + "logo_knockout.png", x: x, y: M - 0.02, w: 2.52, h: 0.50 });
   s1.addText("COMPANY PROFILE", {
-    x: x + CW - 3.0, y: M + 0.10, w: 3.0, h: 0.22, margin: 0,
-    fontFace: EN, fontSize: 8, bold: true, color: GRAY_LT, charSpacing: 2.2, align: "right",
+    x: x + CW - 3.0, y: M + 0.11, w: 3.0, h: 0.22, margin: 0,
+    fontFace: EN, fontSize: 8, bold: true, color: "9FB4BD", charSpacing: 2.2, align: "right",
   });
 
-  eyebrow(s1, x, M + 1.32, "M&A ADVISORY & BUSINESS SUCCESSION", MINT_DK);
+  eyebrow(s1, x, 5.30, "M&A ADVISORY & BUSINESS SUCCESSION", MINT, "mark_mint.png");
 
   s1.addText(
     [
@@ -132,41 +130,40 @@ s1.background = { color: BG };
       { text: "次の成長へつなぐ。", options: {} },
     ],
     {
-      x, y: M + 1.72, w: CW, h: 2.30, margin: 0,
-      fontFace: JPM, fontSize: 33, bold: true, color: NAVY, lineSpacingMultiple: 1.30,
+      x, y: 5.70, w: CW, h: 2.10, margin: 0,
+      fontFace: JPM, fontSize: 37, bold: true, color: W, lineSpacingMultiple: 1.26,
     }
   );
 
   s1.addText(
     "事業承継、成長戦略、資本提携。\n経営者の想いに寄り添い、最適な選択肢をご提案します。",
     {
-      x, y: M + 4.12, w: CW, h: 0.76, margin: 0,
-      fontFace: JP, fontSize: 10.5, color: GRAY, lineSpacingMultiple: 1.55,
+      x, y: 7.94, w: CW, h: 0.80, margin: 0,
+      fontFace: JP, fontSize: 11, color: "C6D7DE", lineSpacingMultiple: 1.58,
     }
   );
 
-  // グループ表記
+  s1.addImage({ path: A + "rule_accent.png", x, y: 9.02, w: 1.30, h: 0.030 });
+
+  s1.addText("企業価値の最大化を通じて、経済に正しい循環を。", {
+    x, y: 9.26, w: CW, h: 0.32, margin: 0,
+    fontFace: JPM, fontSize: 12.5, bold: true, color: MINT,
+  });
+
   s1.addText(
     [
-      { text: "株式会社TWOSTONE&Sons", options: { fontFace: JP, bold: true, color: NAVY } },
-      { text: "（東証グロース・証券コード 7352）グループ", options: { fontFace: JP, color: GRAY } },
+      { text: "株式会社TWOSTONE&Sons", options: { bold: true, color: W } },
+      { text: "（東証グロース・証券コード 7352）グループ", options: { color: "A9BEC7" } },
     ],
-    { x, y: M + 5.02, w: CW, h: 0.24, margin: 0, fontSize: 8.5 }
+    { x, y: 9.86, w: CW, h: 0.24, margin: 0, fontFace: JP, fontSize: 8.5 }
   );
 
-  // ヒーロー上（白文字）
-  s1.addImage({ path: A + "logo_knockout.png", x: x, y: PH - 3.02, w: 2.28, h: 0.452 });
-  s1.addText("企業価値の最大化を通じて、経済に正しい循環を。", {
-    x, y: PH - 2.36, w: CW, h: 0.34, margin: 0,
-    fontFace: JPM, fontSize: 13, bold: true, color: W,
-  });
-
   s1.addShape(deck.ShapeType.roundRect, {
-    x, y: PH - 1.62, w: 4.92, h: 0.42, rectRadius: 0.21,
-    fill: { color: "FFFFFF", transparency: 86 }, line: { color: "FFFFFF", width: 0.6, transparency: 55 },
+    x, y: PH - M - 0.44, w: 4.92, h: 0.44, rectRadius: 0.22,
+    fill: { color: "FFFFFF", transparency: 88 }, line: { color: "FFFFFF", width: 0.6, transparency: 58 },
   });
   s1.addText("本資料は東京商工リサーチのご担当者様を通じてご案内しています", {
-    x: x + 0.22, y: PH - 1.62, w: 4.5, h: 0.42, margin: 0,
+    x: x + 0.24, y: PH - M - 0.44, w: 4.5, h: 0.44, margin: 0,
     fontFace: JP, fontSize: 8.5, color: W, valign: "middle",
   });
 }
@@ -353,19 +350,20 @@ s2.background = { color: BG };
   y += 0.10 + wrh * 3 + 0.18;
 
   // 転換メッセージ
-  s2.addImage({ path: A + "wash_pale.jpg", x, y, w: CW, h: 1.32, sizing: { type: "cover", w: CW, h: 1.32 } });
+  s2.addImage({ path: A + "panel_dark.jpg", x, y, w: CW, h: 1.42, sizing: { type: "cover", w: CW, h: 1.42 } });
+  s2.addImage({ path: A + "scrim_panel.png", x, y, w: CW, h: 1.42 });
   s2.addText("大切なのは、M&Aをするかどうかを急いで決めることではありません。", {
-    x: x + 0.28, y: y + 0.20, w: CW - 0.56, h: 0.28, margin: 0,
-    fontFace: JPM, fontSize: 11.5, bold: true, color: NAVY,
+    x: x + 0.34, y: y + 0.22, w: CW - 0.68, h: 0.30, margin: 0,
+    fontFace: JPM, fontSize: 12, bold: true, color: W,
   });
   s2.addText(
     "まずは自社の価値と、考えられる選択肢を知ることから始まります。M&Aは会社を手放すためだけの手段ではなく、事業承継・成長戦略としての買収・資本提携・不採算事業の整理・事業再生など、会社の未来を考えるための選択肢のひとつです。",
     {
-      x: x + 0.28, y: y + 0.56, w: CW - 0.56, h: 0.76, margin: 0,
-      fontFace: JP, fontSize: 8.5, color: GRAY, lineSpacingMultiple: 1.48,
+      x: x + 0.34, y: y + 0.60, w: CW - 0.68, h: 0.76, margin: 0,
+      fontFace: JP, fontSize: 8.5, color: "B9CDD6", lineSpacingMultiple: 1.48,
     }
   );
-  y += 1.56;
+  y += 1.64;
 
   // 選ばれる理由
   sectionHead(s2, x, y, "選ばれる理由", "WHY WE ARE CHOSEN");
@@ -460,22 +458,20 @@ s2.background = { color: BG };
   y += 1.16;
 
   // 中核サービス
-  s2.addShape(deck.ShapeType.roundRect, {
-    x, y, w: CW, h: 0.96, rectRadius: 0.05,
-    fill: { color: NAVY }, line: { none: true },
-  });
+  s2.addImage({ path: A + "band_service.jpg", x, y, w: CW, h: 1.00, sizing: { type: "cover", w: CW, h: 1.00 } });
+  s2.addImage({ path: A + "scrim_panel.png", x, y, w: CW, h: 1.00 });
   s2.addText("M&A仲介・アドバイザリー", {
-    x: x + 0.28, y: y + 0.16, w: CW - 0.56, h: 0.28, margin: 0,
+    x: x + 0.34, y: y + 0.17, w: CW - 0.68, h: 0.28, margin: 0,
     fontFace: JPM, fontSize: 12, bold: true, color: W,
   });
   s2.addText(
     "譲渡（事業承継・成長戦略）と譲受（買収・資本提携）の双方を支援。株式譲渡・事業譲渡に加え、会社分割や二段階譲渡など目的に応じたスキームを設計します。",
     {
-      x: x + 0.28, y: y + 0.46, w: CW - 0.56, h: 0.46, margin: 0,
-      fontFace: JP, fontSize: 8.5, color: "C2D4DC", lineSpacingMultiple: 1.42,
+      x: x + 0.34, y: y + 0.48, w: CW - 0.68, h: 0.46, margin: 0,
+      fontFace: JP, fontSize: 8.5, color: "BDD1DA", lineSpacingMultiple: 1.42,
     }
   );
-  y += 1.16;
+  y += 1.20;
 
   // ワンストップ支援
   s2.addText("M&A以外の経営課題も、提携先ネットワークでワンストップにご相談いただけます。", {
