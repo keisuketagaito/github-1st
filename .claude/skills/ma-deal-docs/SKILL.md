@@ -58,12 +58,19 @@ PowerPointファイルを壊さずに編集する具体的な手順・落とし�
 
 納品前に必ず以下を通す。ここを飛ばすと、数式エラーが残ったExcelや、文字がはみ出したスライドが客先に出る。
 
+スクリプトの置き場所は環境によって `/root/.claude/skills/synced/...` と `/mnt/skills/public/...` の
+どちらかになる。決め打ちにせず `find / -name recalc.py -path '*xlsx*'` で確認してから使うこと。
+
 ```bash
 # Excel：数式エラー0件を確認（LibreOffice Calcが必要）
-python /root/.claude/skills/xlsx/scripts/recalc.py <案件マスター.xlsx> 300
+#   ※ recalc.py は対象ファイルを「その場で」書き換える。必ずコピーに対して実行すること。
+#      直接かけると、Excelが書いたオートフィルタ等がLibreOffice形式に置き換わり、
+#      openpyxlで開けなくなる（実際に案件マスターを壊した）。
+cp <案件マスター.xlsx> /tmp/chk.xlsx
+python <skills>/xlsx/scripts/recalc.py /tmp/chk.xlsx 300
 
 # PowerPoint：スキーマ・関係・チャートの検証
-python /root/.claude/skills/pptx/scripts/office/validate.py <概要書.pptx> --original <元ファイル.pptx>
+python <skills>/pptx/scripts/office/validate.py <概要書.pptx> --original <元ファイル.pptx>
 
 # PowerPoint：レンダリングして目視（文字はみ出し・重なりの確認）
 soffice --headless --norestore -env:UserInstallation=file:///tmp/lo-qa --convert-to pdf --outdir . deck.pptx
@@ -80,6 +87,33 @@ diff = [i+1 for i,(x,y) in enumerate(zip(a.slides, b.slides))
         != [s.text_frame.text for s in y.shapes if s.has_text_frame]]
 print('変更スライド:', diff)
 ```
+
+## 案件マスターを編集するときの原則
+
+**案件マスターにはグラフが埋め込まれている（テンプレートで7点）。openpyxl で開いて保存すると
+グラフ・図形・一部の書式が失われる。**したがってセルを書き換えるときは、zip内のシートXMLを
+直接編集する `xledit.py`（`XlsxEditor`）を使う。数式は `<v>`（キャッシュ値）を書かず、
+workbook.xml に `fullCalcOnLoad="1"` を立てて Excel／LibreOffice 側で再計算させる。
+計算チェーン（calcChain.xml）は破棄してよい（Excelが再構築する）。
+
+値が必要なとき（パワポに貼る数値など）は、コピーに対して recalc.py をかけ、
+再計算後のブックからシートXMLを読んで取り出す。手計算で埋めない。
+
+テンプレートに残っている既知のバグ（新しい案件でも毎回出る）：
+
+- **年買法シート**：`G8=SUM(G5:G7)` / `H8=SUM(H5:H7)` は修正額（5行目）を二重計上している。
+  正しくは `SUM(G6:G7)` / `SUM(H6:H7)`
+- **修正BS(貸方)**：`D50=修正BS(借方)!D61-D28` と `D51=修正BS(借方)!D60-D27` を足すと
+  税効果が二重に効く。税効果を認識する場合は D50 を税効果前（`D61-D60-(D5+D18)`）に直す
+- **未入力期（4期目・進行期）の構成比**が `#DIV/0!` になる。納品前に IFERROR で包む。
+  共有数式（`t="shared"`）の従属セルはマスター側の数式テキストを包めば連動する
+
+## 決算書PDFの読み取り
+
+CJKフォントが埋め込まれていないPDF（会計事務所のプリンタドライバ出力に多い）は、
+poppler にAdobe-Japan1のCMapが無いとテキストも画像も真っ白になる。
+`apt-get install -y poppler-data` を入れれば `pdftotext -layout` で普通に抜ける。
+「壊れたPDF」と早合点しないこと。
 
 ## 守るべきこと
 
@@ -131,3 +165,4 @@ print('変更スライド:', diff)
 | `references/company-split.md` | 会社分割・非事業用資産の切出しがある案件のとき |
 | `references/hearing-list.md` | ヒアリング項目一覧を作るとき |
 | `references/pptx-ops.md` | パワポのスライド追加・削除・表の行数変更・図形描画をするとき |
+| `references/xledit.py` | 案件マスターのセルを書き換えるとき（グラフを壊さないXML直接編集ヘルパー） |
