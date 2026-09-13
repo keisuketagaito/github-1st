@@ -5,7 +5,7 @@ import openpyxl, copy, datetime
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 SRC = 'master.xlsx'
-OUT = '/home/user/github-1st/LUXAS株式会社/案件マスター_LUXAS株式会社_20260906.xlsx'
+OUT = '/home/user/github-1st/LUXAS株式会社/案件マスター_LUXAS株式会社_20260913.xlsx'
 wb = openpyxl.load_workbook(SRC)
 
 YG   = '游ゴシック'
@@ -551,6 +551,199 @@ for i, (kubun, ronten, jijitsu, houhou) in enumerate(items):
 for col, w in zip('BCDEF', (4, 16, 40, 66, 32)):
     ws.column_dimensions[col].width = w
 ws.freeze_panes = 'C5'
+
+# ---------------------------------------------------------------- 月次推移（進行期）
+# 出所：勘定科目残高推移表 2025年12月〜2026年4月（2026年6月26日付）
+if '月次推移' in wb.sheetnames:
+    del wb['月次推移']
+ws = wb.create_sheet('月次推移', wb.sheetnames.index('PLハイライト'))
+ws.sheet_view.showGridLines = False
+NAVY = '0B3041'; PALE = 'E1F3FB'; GREY = 'E3E7E9'
+thin = Side(style='thin', color='FFFFFF')
+box = Side(style='thin', color='BFBFBF')
+BOX = Border(left=box, right=box, top=box, bottom=box)
+
+ws['B2'] = '進行期（2026年11月期）の月次推移　※2025年12月〜2026年4月の5か月'
+ws['B2'].font = Font(name=YG, size=11, bold=True, color=NAVY)
+ws['J2'] = '(単位：千円)'
+ws['J2'].font = Font(name=YGM, size=9)
+ws['J2'].alignment = Alignment(horizontal='right')
+
+MONTHS = ['2025年12月', '2026年1月', '2026年2月', '2026年3月', '2026年4月']
+# (表示名, 月次5か月の値, 累計, 前年同期比, 強調)
+PLROWS = [
+ ('生体売上高',            [22574606, 33442487, 22793128, 19019717, 28992317], 126822255, 0.774, False),
+ ('サービス売上高',        [4714428, 3832414, 4170949, 6225018, 4479559],      23422368, 1.086, False),
+ ('物販売上高',            [14287821, 13883151, 10195384, 10657750, 11250432],  60274538, 0.838, False),
+ ('売上高',                [41576855, 51158052, 37159461, 35902485, 44722308], 210519161, 0.818, True),
+ ('売上原価',              [17900039, 14911696, 11806779, 12608688, 18701224],  75928426, 0.792, False),
+ ('売上総利益',            [23676816, 36246356, 25352682, 23293797, 26021084], 134590735, 0.833, True),
+ ('販売費及び一般管理費',  [25194150, 22818237, 24290231, 21642271, 23180593], 117125482, 0.838, True),
+ ('　従業員給与',          [10067885, 9790228, 8675740, 8542407, 9024380],      46100640, 0.856, False),
+ ('　役員報酬',            [900000, 900000, 900000, 900000, 900000],             4500000, 0.750, False),
+ ('　法定福利費',          [-2239979, -1018412, 1800348, 898788, 1564034],       1004779, 5.565, False),
+ ('　広告宣伝費',          [5535073, 1650296, 1652013, 1542200, 1639660],       12019242, 0.749, False),
+ ('　ロイヤリティ',        [2404710, 2515078, 1953088, 1561732, 2085840],       10520448, 0.781, False),
+ ('　地代家賃',            [3929660, 2859788, 2731198, 2774879, 2621325],       14916850, 0.953, False),
+ ('　リース料',            [621786, 621786, 621786, 621786, 621786],             3108930, 1.073, False),
+ ('　支払手数料',          [752211, 1224373, 1255746, 1023285, 732725],          4988340, 0.786, False),
+ ('　接待交際費',          [528770, 226920, 620261, 637271, 450479],             2463701, 0.538, False),
+ ('営業利益',              [-1517334, 13428119, 1062451, 1651526, 2840491],     17465253, 0.802, True),
+ ('営業外収益',            [12704, 444664, 32026, 24636, 69738],                 583768, 1.642, False),
+ ('営業外費用',            [235598, 251603, 245152, 339007, 281761],            1353121, 1.258, False),
+ ('経常利益',              [-1740228, 13621180, 849325, 1337155, 2628468],      16695900, 0.793, True),
+ ('特別損失（棚卸資産廃棄損）', [0, 0, 0, 44000000, 0],                          44000000, None, False),
+ ('当期純利益',            [-1740228, 13621180, 848351, -42662857, 2628468],   -27305086, None, True),
+]
+hdr = ['科目'] + MONTHS + ['5か月累計', '前年同期比']
+for i, h in enumerate(hdr):
+    c = ws.cell(row=4, column=2 + i)
+    c.value = h
+    c.font = Font(name=YG, size=9, bold=True, color='FFFFFF')
+    c.fill = PatternFill('solid', fgColor=NAVY)
+    c.alignment = Alignment(horizontal='center', vertical='center')
+    c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+r0 = 5
+for i, (label, vals, tot, yoy, emph) in enumerate(PLROWS):
+    r = r0 + i
+    ws.cell(row=r, column=2).value = label
+    ws.cell(row=r, column=2).font = Font(name=YG, size=9, bold=emph)
+    for j, v in enumerate(vals):
+        c = ws.cell(row=r, column=3 + j)
+        c.value = v if v else None
+        c.number_format = '#,##0,;[Red]△ #,##0,;"－"'
+        c.font = Font(name=ARIAL, size=9, bold=emph)
+    c = ws.cell(row=r, column=8)
+    c.value = tot
+    c.number_format = '#,##0,;[Red]△ #,##0,;"－"'
+    c.font = Font(name=ARIAL, size=9, bold=emph)
+    c = ws.cell(row=r, column=9)
+    c.value = yoy
+    c.number_format = '0.0%;;"－"'
+    c.font = Font(name=ARIAL, size=9, italic=True)
+    for col in range(2, 10):
+        ws.cell(row=r, column=col).border = BOX
+        if emph:
+            ws.cell(row=r, column=col).fill = PatternFill('solid', fgColor=PALE)
+rEnd = r0 + len(PLROWS)
+
+# 月末の主要B/S科目
+ws.cell(row=rEnd + 2, column=2).value = '【月末の主要B/S科目】'
+ws.cell(row=rEnd + 2, column=2).font = Font(name=YG, size=10, bold=True, color=NAVY)
+bh = rEnd + 3
+hdr2 = ['科目', '2025年11月末（決算）'] + [m + '末' for m in MONTHS]
+for i, h in enumerate(hdr2):
+    c = ws.cell(row=bh, column=2 + i)
+    c.value = h
+    c.font = Font(name=YG, size=9, bold=True, color='FFFFFF')
+    c.fill = PatternFill('solid', fgColor=NAVY)
+    c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+BSROWS = [
+ ('現預金',        10140492, [9990901, 12439434, 14515681, 22167895, 24727601], False),
+ ('売掛金',        27628072, [27267195, 31199518, 18780393, 18014838, 24301899], False),
+ ('棚卸資産',     106167284, [106167284, 106167284, 106167284, 61939187, 61939187], False),
+ ('有形固定資産',  54658019, [54658019, 54658019, 57133019, 57133019, 57133019], False),
+ ('差入保証金',    27370600, [27346800, 27323000, 27299200, 25275400, 25251600], False),
+ ('資産合計',     235385177, [231433689, 237695082, 229844776, 190610867, 199417594], True),
+ ('買掛金',         9202412, [12352915, 9304332, 6279047, 7069055, 9650090], False),
+ ('未払消費税等',  11784100, [11784100, 11447391, 10447391, 10447391, 8447391], False),
+ ('長期借入金',   191858000, [191858000, 191858000, 191858000, 191858000, 191858000], False),
+ ('役員借入金',     7565770, [5630657, 4788319, 3560039, 7417948, 13055242], False),
+ ('負債合計',     249441992, [247230732, 239870945, 231172288, 234601236, 240779495], True),
+ ('純資産合計',   -14056815, [-15797043, -2175863, -1327512, -43990369, -41361901], True),
+]
+for i, (label, base, vals, emph) in enumerate(BSROWS):
+    r = bh + 1 + i
+    ws.cell(row=r, column=2).value = label
+    ws.cell(row=r, column=2).font = Font(name=YG, size=9, bold=emph)
+    for j, v in enumerate([base] + vals):
+        c = ws.cell(row=r, column=3 + j)
+        c.value = v
+        c.number_format = '#,##0,;[Red]△ #,##0,;"－"'
+        c.font = Font(name=ARIAL, size=9, bold=emph)
+    for col in range(2, 9):
+        ws.cell(row=r, column=col).border = BOX
+        if emph:
+            ws.cell(row=r, column=col).fill = PatternFill('solid', fgColor=PALE)
+note = ws.cell(row=bh + len(BSROWS) + 3, column=2)
+note.value = (
+ '※出所：勘定科目残高推移表 2025年12月〜2026年4月（2026年6月26日付）。「2025年11月末（決算）」列のみ第5期決算報告書。\n'
+ '※進行期の月次には減価償却費が計上されていない（販管費に「減価償却費」の科目が立っていない）。'
+ '通期では2025年11月期並み（6,349千円）の償却負担が乗ると想定され、上表の営業利益はその分だけ過大（要確認）。\n'
+ '※法定福利費は2025年12月・2026年1月がマイナス計上となっており、年末調整・社会保険料の精算処理の影響と推察（仮説・要確認）。'
+ '5か月累計1,005千円は2025年11月期の通期15,295千円に比して著しく低く、期中の未計上分が下期に乗る可能性がある。\n'
+ '※2026年3月に棚卸資産廃棄損44,000千円を計上（他勘定振替高△44,000千円）。'
+ '2025年11月期末の「本社管理分32,000千円＋バックヤード管理分12,000千円」に相当すると推察（仮説・要確認）。\n'
+ '※差入保証金は2026年3月に2,024千円減少しており、うち2,000千円は撤退店舗の敷金返還と推察（仮説・要確認）。\n'
+ '※長期借入金は月次では期首残高のまま据え置かれており、返済額は決算時に一括計上されていると推察（要確認）。'
+ '短期借入金（2026年4月末384千円）は月次で計上されている。')
+note.font = Font(name=YGM, size=9)
+note.alignment = Alignment(vertical='top')
+for col, w in zip('BCDEFGHIJ', (26, 13, 13, 13, 13, 13, 13, 11, 4)):
+    ws.column_dimensions[col].width = w
+ws.freeze_panes = 'C5'
+
+# ---------------------------------------------------------------- BSハイライト（進行期）
+ws = wb['BSハイライト']
+ws['H3'] = '進行期（2026年4月末TB）'
+ws['H3'].font = Font(name=YG, size=10, bold=True, color=NAVY)
+prog_l = [('流動資産', None), ('現預金', 'G6'), ('売掛金', 'G7'), ('在庫', None),
+          ('前払費用', 'G11'), ('未収入金', None), ('未収還付法人税等', None), ('仮払金', 'G14'),
+          ('固定資産', None), ('建物', 'G23'), ('車両運搬具', 'G25'), ('工具器具及び備品', 'G26'),
+          ('土地', 'G27'), ('長期前払費用', 'G48'), ('差入保証金', 'G49'), ('営業権', 'G50'),
+          ('その他', None), ('資産合計', None)]
+ws['H4'] = '流動資産'; ws['I4'] = "='BS(借方)'!G5"
+rows_l = [('現預金', "='BS(借方)'!G6"), ('売掛金', "='BS(借方)'!G7"),
+          ('在庫', "='BS(借方)'!G8+'BS(借方)'!G9"), ('前払費用', "='BS(借方)'!G11"),
+          ('仮払金', "='BS(借方)'!G14"), ('その他', "='BS(借方)'!G15")]
+for i, (lab, f) in enumerate(rows_l):
+    ws.cell(row=5 + i, column=8).value = lab
+    ws.cell(row=5 + i, column=9).value = f
+ws['H11'] = '固定資産'; ws['I11'] = "='BS(借方)'!G20"
+rows_f = [('建物附属設備', "='BS(借方)'!G23"), ('構築物', "='BS(借方)'!G24"),
+          ('車両運搬具', "='BS(借方)'!G25"), ('工具器具及び備品', "='BS(借方)'!G26"),
+          ('土地', "='BS(借方)'!G27"), ('長期前払費用', "='BS(借方)'!G48"),
+          ('差入保証金', "='BS(借方)'!G49"), ('営業権', "='BS(借方)'!G50"),
+          ('その他', "='BS(借方)'!G28+'BS(借方)'!G47")]
+for i, (lab, f) in enumerate(rows_f):
+    ws.cell(row=12 + i, column=8).value = lab
+    ws.cell(row=12 + i, column=9).value = f
+ws['H21'] = '資産合計'; ws['I21'] = "='BS(借方)'!G61"
+ws['K3'] = '進行期（2026年4月末TB）'
+ws['K3'].font = Font(name=YG, size=10, bold=True, color=NAVY)
+ws['K4'] = '流動負債'; ws['L4'] = "='BS (貸方)'!G5"
+rows_d = [('買掛金', "='BS (貸方)'!G6"), ('短期借入金', "='BS (貸方)'!G7"),
+          ('未払金', "='BS (貸方)'!G8"), ('未払費用', "='BS (貸方)'!G9"),
+          ('未払消費税等', "='BS (貸方)'!G11"), ('預り金', "='BS (貸方)'!G12"),
+          ('カード未払金', "='BS (貸方)'!G13")]
+for i, (lab, f) in enumerate(rows_d):
+    ws.cell(row=5 + i, column=11).value = lab
+    ws.cell(row=5 + i, column=12).value = f
+ws['K12'] = '固定負債'; ws['L12'] = "='BS (貸方)'!G18"
+rows_g = [('長期借入金', "='BS (貸方)'!G19"), ('役員借入金', "='BS (貸方)'!G20"),
+          ('長期未払金', "='BS (貸方)'!G21")]
+for i, (lab, f) in enumerate(rows_g):
+    ws.cell(row=13 + i, column=11).value = lab
+    ws.cell(row=13 + i, column=12).value = f
+ws['K16'] = '負債合計'; ws['L16'] = "='BS (貸方)'!G25"
+ws['K18'] = '資本金'; ws['L18'] = "='BS (貸方)'!G36"
+ws['K19'] = '利益剰余金'; ws['L19'] = "='BS (貸方)'!G43"
+ws['K20'] = '純資産合計'; ws['L20'] = "='BS (貸方)'!G50"
+ws['K21'] = '負債・純資産合計'; ws['L21'] = "='BS (貸方)'!G51"
+for r in range(3, 22):
+    for col in (8, 11):
+        ws.cell(row=r, column=col).font = Font(name=YG, size=9,
+                                               bold=ws.cell(row=r, column=col).value in
+                                               ('流動資産', '固定資産', '資産合計', '流動負債',
+                                                '固定負債', '負債合計', '純資産合計', '負債・純資産合計'))
+    for col in (9, 12):
+        ws.cell(row=r, column=col).font = Font(name=ARIAL, size=9)
+        ws.cell(row=r, column=col).number_format = '#,##0,;[Red]△ #,##0,;"－"'
+for col, w in zip('HIJKL', (17, 12, 1.2, 17, 12)):
+    ws.column_dimensions[col].width = w
+ws['H23'] = '※進行期は2026年4月末の試算表ベース。決算整理（減価償却・棚卸評価等）は未了。'
+ws['H23'].font = Font(name=YGM, size=9)
 
 # ---------------------------------------------------------------- 仕上げ（数式エラーの解消）
 # 第2期（C列）はデータ未受領のため、C列を分母とする比率が #DIV/0! になる。IFERROR で包む。

@@ -168,6 +168,46 @@ def fit_rows(table, want, template_idx, tail_keep=0):
         start = cur - tail_keep - (cur - want)
         del_rows(table, range(start, start + (cur - want)))
 
+def add_column(table, src_idx, after_idx):
+    """src_idx 列を複製して after_idx 列の直後に挿入する。"""
+    tbl = table._tbl
+    grid = tbl.find(qn('a:tblGrid'))
+    cols = grid.findall(qn('a:gridCol'))
+    grid.insert(list(grid).index(cols[after_idx]) + 1, deepcopy(cols[src_idx]))
+    for tr in tbl.findall(qn('a:tr')):
+        tcs = tr.findall(qn('a:tc'))
+        new = deepcopy(tcs[src_idx])
+        for a in ('gridSpan', 'hMerge', 'vMerge', 'rowSpan'):
+            new.attrib.pop(a, None)
+        tcs[after_idx].addnext(new)
+
+def span_row(table, r):
+    """行全体を1セルに結合し直す（列を増やしたヘッダー行の復旧用）。"""
+    tr = trs(table)[r]
+    tcs = tr.findall(qn('a:tc'))
+    tcs[0].set('gridSpan', str(len(tcs)))
+    tcs[0].attrib.pop('hMerge', None)
+    for tc in tcs[1:]:
+        tc.attrib.pop('gridSpan', None)
+        tc.set('hMerge', '1')
+
+def unspan_row(table, r):
+    """結合されたヘッダー行を解除して1セルずつ使えるようにする。"""
+    tr = trs(table)[r]
+    for tc in tr.findall(qn('a:tc')):
+        tc.attrib.pop('gridSpan', None)
+        tc.attrib.pop('hMerge', None)
+
+def table_font(table, pt, rows=None, cols=None):
+    from pptx.util import Pt as _Pt
+    rr = rows if rows is not None else range(len(table.rows))
+    cc = cols if cols is not None else range(len(table.columns))
+    for r in rr:
+        for c in cc:
+            for para in table.cell(r, c).text_frame.paragraphs:
+                for run in para.runs:
+                    run.font.size = _Pt(pt)
+
 def set_heights(table, heights):
     for i, h in enumerate(heights):
         if i < len(table.rows) and h is not None:
