@@ -902,5 +902,294 @@ for _r in range(5, 35):
         elif _col in (4, 5, 6):
             _cell.number_format = '0;;"－"'
 
+# ================================================================ VR（株式価値評価）セクション
+# 評価基準日：2025年11月30日（第5期末＝直近決算日）
+# 進行期TB（2026年6月末）は決算整理未了のため、評価は決算数値を基礎とし、
+# 基準日後に判明した事実（2026年3月の棚卸資産廃棄）は評価差額として反映する。
+
+NAVY_ = 'FF0B3041'
+def _f(ws, addr, name=YG, size=9, bold=False, color=None):
+    ws[addr].font = Font(name=name, size=size, bold=bold,
+                         color=color) if color else Font(name=name, size=size, bold=bold)
+
+# ---- 修正BS（資産）評価差額 -------------------------------------------------
+# 行番号は 'BS(借方)' の並びに対応（8=商品／14=仮払金／50=営業権）
+mbd = wb['修正BS(借方)']
+ADJ_BS_D = {
+    8:  (-44000000, '2026年3月に本社分32,000千円・バックヤード分12,000千円を全額廃棄。'
+                    '基準日時点で既に滞留・陳腐化していたと判断し評価減'),
+    14: (-1650000,  '回収を前提とした支出ではなく資産性が認められないため全額評価減'),
+    50: (-1500004,  '年買法で営業権を別途算定するため、B/S計上分を残すと二重計上となる。'
+                    '換金価値も認められないため全額評価減'),
+}
+for _r, (_v, _note) in ADJ_BS_D.items():
+    mbd.cell(row=_r, column=4).value = _v
+    mbd.cell(row=_r, column=4).font = Font(name=ARIAL, size=9)
+    mbd.cell(row=_r, column=7).value = _note
+    mbd.cell(row=_r, column=7).font = Font(name=YGM, size=9)
+mbd['G3'] = '評価差額の根拠'
+_f(mbd, 'G3', bold=True)
+mbd.column_dimensions['G'].width = 62
+mbd['B63'] = ('※評価基準日は2025年11月30日（第5期末）。'
+              '※繰延税金資産は、繰越欠損金を有し課税所得の見込みが立たないため回収可能性を認めず、評価差額に対する税効果は認識していない。')
+_f(mbd, 'B63', name=YGM)
+
+# ---- 修正BS（負債・純資産）：評価減は資産側のみのため貸方の修正額は0 --------
+mbc = wb['修正BS(貸方) ']
+mbc['G3'] = '評価差額の根拠'
+_f(mbc, 'G3', bold=True)
+mbc.column_dimensions['G'].width = 62
+for _r, _note in {
+    9:  '給与の締日から基準日までの経過分が含まれているか要確認。'
+        '未計上であれば約10,000千円の追加計上余地（賃金台帳では当月締・翌月25日払）',
+    19: '9本すべて代表者の連帯保証付き。民間6本は信用保証協会の保証付き',
+    20: '譲渡時に返済を希望。ネットキャッシュ算定ではデットライクアイテムとして控除',
+}.items():
+    mbc.cell(row=_r, column=7).value = _note
+    mbc.cell(row=_r, column=7).font = Font(name=YGM, size=9)
+mbc['B55'] = ('※賞与引当金・退職給付引当金・役員退職慰労引当金・資産除去債務は、'
+              '規程および撤退店舗の原状回復見積が未受領のため計上していない（追加調整の可能性あり）。')
+_f(mbc, 'B55', name=YGM)
+
+# ---- 修正SGA：正常収益力への調整（概要書の調整方針と同一） ------------------
+# 列 D=第3期／G=第4期／J=第5期 の修正額。費用の戻し入れはマイナス（費用を減らす）。
+msg = wb['修正SGA']
+SGA_ADJ = {   # 行: (第3期, 第4期, 第5期, 調整事由)
+    5:  (0, -8831000, -8183000, '現場責任者（淺野崇氏）の人件費を役員報酬へ振替'),
+    11: (0, 0, 0,               '代表者の退任分を戻し入れ、後任役員の同水準報酬を控除（差引ゼロ）'),
+    15: (-2386000, -3154000, -5604000, '非事業用車両のリース料（本件実行後に発生しない）'),
+    22: (-4453000, -6230000, -4218000, '接待交際費のうち適正水準4,000千円を超える部分'),
+    23: (-696000, -1599000, -1224000,  '事業関連性の低い生命保険料'),
+}
+for _r, (_a, _b, _c, _note) in SGA_ADJ.items():
+    for _col, _v in ((7, _a), (10, _b), (13, _c)):
+        msg.cell(row=_r, column=_col).value = _v
+        msg.cell(row=_r, column=_col).font = Font(name=ARIAL, size=9)
+    msg.cell(row=_r, column=19).value = _note
+    msg.cell(row=_r, column=19).font = Font(name=YGM, size=9)
+msg['S3'] = '調整事由'
+_f(msg, 'S3', bold=True)
+msg.column_dimensions['S'].width = 58
+for _c in (7, 10, 13):
+    msg.cell(row=39, column=_c).value = '=SUM({0}5:{0}38)'.format(
+        openpyxl.utils.get_column_letter(_c))
+    msg.cell(row=39, column=_c).font = Font(name=ARIAL, size=9, bold=True)
+
+# ---- 修正PL：雑収入（社員割引）を正常収益力に加算 ---------------------------
+mpl = wb['修正PL']
+for _col, _v in ((7, 1321000), (10, 635000), (13, 654868)):
+    mpl.cell(row=24, column=_col).value = _v
+    mpl.cell(row=24, column=_col).font = Font(name=ARIAL, size=9)
+# 販管費行の修正額は修正SGAの合計を参照する（テンプレートでは未設定）
+for _col in (7, 10, 13):
+    _L = openpyxl.utils.get_column_letter(_col)
+    mpl.cell(row=19, column=_col).value = '=修正SGA!{}39'.format(_L)
+    mpl.cell(row=19, column=_col).font = Font(name=ARIAL, size=9)
+mpl['S24'] = '社員割引に伴う経常的な雑収入。事業に付随して継続的に発生するため正常収益力に加算'
+_f(mpl, 'S24', name=YGM)
+mpl['S3'] = '調整事由'
+_f(mpl, 'S3', bold=True)
+mpl.column_dimensions['S'].width = 58
+# 正常収益力（年買法・マルチプル法で用いる修正後営業利益）への橋渡し
+BRIDGE = [('修正後営業利益（修正PL）', '=H20', '=K20', '=N20'),
+          ('　経常的雑収入（社員割引）の加算', '=G24', '=J24', '=M24'),
+          ('正常収益力（修正後営業利益ベース）', '=H62+H63', '=K62+K63', '=N62+N63')]
+mpl['B61'] = '【正常収益力への橋渡し】'
+_f(mpl, 'B61', bold=True)
+for _i, (_lab, _a, _b, _c2) in enumerate(BRIDGE):
+    _r = 62 + _i
+    mpl.cell(row=_r, column=2).value = _lab
+    mpl.cell(row=_r, column=2).font = Font(name=YG, size=9, bold=_i == 2)
+    for _col, _fm in ((8, _a), (11, _b), (14, _c2)):
+        _cell = mpl.cell(row=_r, column=_col)
+        _cell.value = _fm
+        _cell.font = Font(name=ARIAL, size=9, bold=_i == 2)
+        _cell.number_format = '#,##0,;[Red]△ #,##0,;"－"'
+mpl['S62'] = ('※雑収入は営業外収益であるため修正PL上は営業利益に含まれないが、'
+              '社員割引に伴い事業へ付随して継続的に発生するため、正常収益力には加算する。'
+              'この加算後の金額が企業概要書の調整項目合計と一致する。')
+_f(mpl, 'S62', name=YGM)
+mpl['B60'] = ('※特別損失に計上された固定資産売却損968千円・除却損330千円は非経常的な損益として調整していない。'
+              '※2026年3月の棚卸資産廃棄損44,000千円は基準日後の事象であり、修正BSで評価差額として反映している。'
+              '※支払利息は営業利益に含まれないため、正常収益力の算定上あらためて控除していない。')
+_f(mpl, 'B60', name=YGM)
+
+# ---- ネットキャッシュ -------------------------------------------------------
+nc = wb['ネットキャッシュ']
+nc['C4'] = "='BS(借方)'!F6"                     # 現金及び預金
+nc['F5'] = "='BS (貸方)'!F19"                   # 長期借入金
+nc['F7'] = "='BS (貸方)'!F20"                   # 役員借入金
+nc['F8'] = "='BS (貸方)'!F10"                   # 未払法人税等
+for _a in ('C4', 'F5', 'F7', 'F8', 'C13', 'F13'):
+    nc[_a].font = Font(name=ARIAL, size=10, bold=_a.endswith('13'))
+    nc[_a].number_format = '#,##0,;[Red]△ #,##0,;"－"'
+nc['B15'] = ('※基準日（2025年11月30日）の残高。保険積立金・投資有価証券・役員貸付金の残高はない。'
+             '※長期未払金2,346千円は分割払いの未払金であり有利子負債ではないためデットライクに含めていない（要確認）。')
+_f(nc, 'B15', name=YGM)
+
+# ---- 年買法 -----------------------------------------------------------------
+nb = wb['年買法']
+nb['B3'] = '2025年11月期'
+nb['C4'] = "='BS (貸方)'!F50"                   # 簿価純資産額
+nb['C5'] = "='修正BS(貸方) '!D50"               # 評価差額
+nb['C6'] = 0                                    # 税効果（回収可能性なしのため認識しない）
+for _col, _lab in ((6, '2023年11月期'), (7, '2024年11月期'), (8, '2025年11月期')):
+    nb.cell(row=3, column=_col).value = _lab
+for _col, _src in ((6, 'D'), (7, 'E'), (8, 'F')):
+    nb.cell(row=4, column=_col).value = "=PLハイライト!{}8".format(_src)
+    nb.cell(row=5, column=_col).value = "=PLハイライト!{}17".format(_src)
+    # テンプレートの既知の不具合：修正額行を二重計上する SUM 範囲を是正する
+    nb.cell(row=8, column=_col).value = '=SUM({0}6:{0}7)'.format(
+        openpyxl.utils.get_column_letter(_col))
+nb['K4'] = '=C7'                                # 時価純資産
+nb['B12'] = ('※基準営業利益＝修正後税考慮後営業利益の加重平均（直近期50%・前期30%・前々期20%）。'
+             '※税考慮額は実効税率34%。※営業権倍率1〜3倍は国内中小企業M&Aのボリュームゾーン。\n'
+             '※繰越欠損金を有し課税所得の見込みが立たないため、評価差額に対する繰延税金資産は認識していない（税効果ゼロ）。\n'
+             '※修正額は企業概要書の調整項目合計と同一（販管費の修正＋経常的雑収入）。'
+             '修正PLでは雑収入を営業外収益に計上しているため、修正PL上の修正後営業利益との差額は当該雑収入である（修正PL 61行目の橋渡しを参照）。')
+_f(nb, 'B12', name=YGM)
+
+# ---- EV/EBITDAマルチプル法 --------------------------------------------------
+ev = wb['EV EBITDAマルチプル']
+ev['B3'] = '2025年11月期'
+ev['C4'] = "=ネットキャッシュ!C13"
+ev['C5'] = "=ネットキャッシュ!F13"
+for _col, _lab, _src in ((6, '2023年11月期', 'D'), (7, '2024年11月期', 'E'), (8, '2025年11月期', 'F')):
+    ev.cell(row=3, column=_col).value = _lab
+    ev.cell(row=4, column=_col).value = "=PLハイライト!{}8".format(_src)
+    ev.cell(row=5, column=_col).value = "=PLハイライト!{}17".format(_src)
+    ev.cell(row=7, column=_col).value = "=PLハイライト!{}15".format(_src)
+ev['B12'] = ('※基準EBITDA＝修正後EBITDAの加重平均（直近期50%・前期30%・前々期20%）。'
+             '※修正後EBITDA＝修正後営業利益＋減価償却費であり、企業概要書の調整後EBITDAと同一である。\n'
+             '※非流動性ディスカウント30%は、上場会社の株価倍率に織り込まれた市場性を非上場株式へ適用するにあたり控除するもの。'
+             'コストアプローチには適用しない。')
+_f(ev, 'B12', name=YGM)
+
+# 数値セルの書式を整える
+for _ws, _cells in ((nb, ['C4', 'C5', 'C6', 'C7', 'K4', 'K5', 'L5', 'M5', 'K6', 'L6', 'M6', 'H10']
+                         + ['{}{}'.format(c, r) for c in 'FGH' for r in (4, 5, 6, 7, 8)]),
+                    (ev, ['C4', 'C5', 'C6', 'K4', 'L4', 'M4', 'K5', 'L5', 'M5', 'K6', 'K7', 'L7', 'M7', 'H10']
+                         + ['{}{}'.format(c, r) for c in 'FGH' for r in (4, 5, 6, 7, 8)])):
+    for _a in _cells:
+        _ws[_a].font = Font(name=ARIAL, size=10,
+                            bold=_a[0] in 'KLM' or _a in ('C7', 'C6', 'H10'))
+        _ws[_a].number_format = '#,##0,;[Red]△ #,##0,;"－"'
+
+# ---- 評価科目別の検討結果（不動産を保有しないため「修正内容詳細［土地］」の代替）----
+if '評価科目' in wb.sheetnames:
+    del wb['評価科目']
+vk = wb.create_sheet('評価科目', wb.sheetnames.index('年買法'))
+vk['B2'] = '評価科目別の検討結果（評価基準日：2025年11月30日）'
+vk['B2'].font = Font(name=YG, size=11, bold=True, color='0B3041')
+vk['G2'] = '(単位：千円)'
+vk['G2'].font = Font(name=YGM, size=9)
+_hdr = ('№', '科目', '帳簿価額', '評価差額', '評価額', '検討結果・調整事由')
+for _i, _h in enumerate(_hdr):
+    _c = vk.cell(row=4, column=2 + _i)
+    _c.value = _h
+    _c.font = Font(name=YG, size=9, bold=True, color='FFFFFF')
+    _c.fill = PatternFill('solid', fgColor='0B3041')
+    _c.alignment = Alignment(horizontal='center', vertical='center')
+VK_ROWS = [
+ ('商品（棚卸資産）', "='BS(借方)'!F8", -44000000,
+  '2026年3月に本社分32,000千円・バックヤード分12,000千円を全額廃棄。基準日時点で滞留・陳腐化していたと判断し評価減。'
+  '残る外部保管在庫10,000千円は実在性が未確認（要確認）'),
+ ('営業権', "='BS(借方)'!F50", -1500004,
+  '年買法で営業権を別途算定するため二重計上となること、および換金価値が認められないことから全額評価減'),
+ ('仮払金', "='BS(借方)'!F14", -1650000,
+  '回収を前提とした支出ではなく資産性が認められないため全額評価減'),
+ ('売掛金', "='BS(借方)'!F7", 0,
+  'FC本部17,373千円・決済会社10,255千円で構成され、いずれも翌月回収。滞留債権は認められないため簿価評価'),
+ ('土地（駐車場用地89.4㎡）', "='BS(借方)'!F27", 0,
+  '路線価図・固定資産税評価証明が未受領のため簿価評価。簿価33千円/㎡であり大幅な含み損益は生じにくいと推察（要確認）'),
+ ('建物附属設備・工具器具備品', "='BS(借方)'!F22+'BS(借方)'!F26", 0,
+  '減価償却内訳明細書により適正償却を確認。単独の換金価値は限定的だが事業継続を前提に簿価評価'),
+ ('車両運搬具', "='BS(借方)'!F25", 0,
+  '事業用3台。中古車市場価値が簿価を上回る可能性があるが査定書が未受領のため簿価評価（要確認）'),
+ ('差入保証金', "='BS(借方)'!F49", 0,
+  '賃貸借契約書が未受領で償却条項・返還条件が不明のため簿価評価。返還額への評価替えの余地がある（要確認）'),
+ ('長期前払費用', "='BS(借方)'!F48", 0,
+  '内訳が未受領のため簿価評価。信用保証料等の前払であれば換金価値は認められず最大1,712千円の減額余地（要確認）'),
+ ('未払費用', "='BS (貸方)'!F9", 0,
+  '賃金台帳では当月締・翌月25日払。11月分給与が未払計上されているか要確認。'
+  '未計上であれば約10,000千円超の追加計上が必要'),
+ ('賞与引当金', 0, 0, '賞与制度・支給実績が未確認のため未計上（要確認）'),
+ ('退職給付引当金', 0, 0, '退職金規程が未受領のため未計上（要確認）'),
+ ('役員退職慰労引当金', 0, 0, '役員退職慰労金規程が未受領のため未計上（要確認）'),
+ ('資産除去債務', 0, 0,
+  '店舗内装の原状回復義務。撤退2店舗の原状回復費用・違約金が未確認であり未計上（要確認）'),
+ ('繰延税金資産', 0, 0,
+  '繰越欠損金を有し課税所得の見込みが立たないため回収可能性を認めず、税効果は認識していない'),
+]
+_thin = Side(style='thin', color='BFBFBF')
+for _i, (_nm, _bk, _dv, _note) in enumerate(VK_ROWS):
+    _r = 5 + _i
+    vk.cell(row=_r, column=2).value = _i + 1
+    vk.cell(row=_r, column=3).value = _nm
+    vk.cell(row=_r, column=4).value = _bk
+    vk.cell(row=_r, column=5).value = _dv
+    vk.cell(row=_r, column=6).value = '=D{0}+E{0}'.format(_r)
+    vk.cell(row=_r, column=7).value = _note
+    for _c in range(2, 8):
+        _cell = vk.cell(row=_r, column=_c)
+        _cell.border = Border(bottom=_thin)
+        if _c in (4, 5, 6):
+            _cell.font = Font(name=ARIAL, size=9)
+            _cell.number_format = '#,##0,;[Red]△ #,##0,;"－"'
+        elif _c == 7:
+            _cell.font = Font(name=YGM, size=9)
+            _cell.alignment = Alignment(wrap_text=True, vertical='center')
+        else:
+            _cell.font = Font(name=YG, size=9)
+            _cell.alignment = Alignment(horizontal='center' if _c == 2 else 'left',
+                                        vertical='center')
+    vk.row_dimensions[_r].height = 30
+_tot = 5 + len(VK_ROWS)
+vk.cell(row=_tot, column=3).value = '評価差額 合計'
+vk.cell(row=_tot, column=5).value = '=SUM(E5:E{})'.format(_tot - 1)
+for _c in (3, 5):
+    vk.cell(row=_tot, column=_c).font = Font(name=YG if _c == 3 else ARIAL, size=9, bold=True)
+vk.cell(row=_tot, column=5).number_format = '#,##0,;[Red]△ #,##0,;"－"'
+for _col, _w in zip('BCDEFG', (4, 26, 12, 12, 12, 84)):
+    vk.column_dimensions[_col].width = _w
+
+# ---- 評価参考（進行期実績を年換算した場合の感応度）--------------------------
+if '評価参考' in wb.sheetnames:
+    del wb['評価参考']
+vs = wb.create_sheet('評価参考', wb.sheetnames.index('株式価値 '))
+vs['B2'] = '参考｜進行期（2026年11月期）7か月実績を年換算した場合の試算'
+vs['B2'].font = Font(name=YG, size=11, bold=True, color='0B3041')
+vs['B3'] = ('※不採算2店舗の撤退効果が通期で発現し、進行期7か月の水準が年間を通じて維持されることを'
+            '前提とした仮説試算であり、評価結果ではない。')
+vs['B3'].font = Font(name=YGM, size=9)
+VS_ROWS = [
+ ('進行期7か月 営業利益', '=PLハイライト!G8', '月次では減価償却費が未計上のため実質的にEBITDAベース'),
+ ('　正常収益力調整（7か月相当）', '=PLハイライト!F17/12*7', '第5期の調整項目合計19,884千円を7か月按分'),
+ ('進行期7か月 修正後EBITDA', '=C5+C6', ''),
+ ('年換算 修正後EBITDA', '=C7/7*12', '7か月実績を12か月へ単純年換算'),
+ ('　減価償却費（通期実績）', "=-PLハイライト!F15", '第5期の実績額を通期見込みとして控除'),
+ ('年換算 修正後営業利益', '=C8+C9', ''),
+ ('', '', ''),
+ ('時価純資産（2026年6月末ベース）', "='BS (貸方)'!G50-'BS(借方)'!G50-'BS(借方)'!G14",
+  '進行期末の純資産から営業権・仮払金を控除。棚卸資産の廃棄損は進行期に計上済のため追加の評価減はない'),
+ ('営業権（年買法・1倍）', '=C10*0.66*1', '税考慮後営業利益×1倍'),
+ ('営業権（年買法・3倍）', '=C10*0.66*3', '税考慮後営業利益×3倍'),
+ ('想定株式価値（年買法・下限）', '=C12+C13', '時価純資産＋営業権1倍'),
+ ('想定株式価値（年買法・上限）', '=C12+C14', '時価純資産＋営業権3倍'),
+]
+for _i, (_lab, _fm, _note) in enumerate(VS_ROWS):
+    _r = 5 + _i
+    vs.cell(row=_r, column=2).value = _lab or None
+    vs.cell(row=_r, column=3).value = _fm or None
+    vs.cell(row=_r, column=4).value = _note or None
+    vs.cell(row=_r, column=2).font = Font(name=YG, size=9, bold=_lab.startswith('想定') or _lab.startswith('年換算'))
+    vs.cell(row=_r, column=3).font = Font(name=ARIAL, size=9, bold=_lab.startswith('想定'))
+    vs.cell(row=_r, column=3).number_format = '#,##0,;[Red]△ #,##0,;"－"'
+    vs.cell(row=_r, column=4).font = Font(name=YGM, size=9)
+vs['C4'] = '(単位：千円)'
+vs['C4'].font = Font(name=YGM, size=9)
+for _col, _w in zip('BCD', (32, 14, 80)):
+    vs.column_dimensions[_col].width = _w
+
 wb.save(OUT)
 print('saved:', OUT)

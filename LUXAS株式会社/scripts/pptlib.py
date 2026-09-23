@@ -181,6 +181,39 @@ def add_column(table, src_idx, after_idx):
             new.attrib.pop(a, None)
         tcs[after_idx].addnext(new)
 
+def del_columns(table, idxs):
+    """指定した列を削除する。結合（gridSpan/hMerge）は事前に解除しておくこと。"""
+    tbl = table._tbl
+    grid = tbl.find(qn('a:tblGrid'))
+    for i in sorted(set(idxs), reverse=True):
+        cols = grid.findall(qn('a:gridCol'))
+        grid.remove(cols[i])
+        for tr in tbl.findall(qn('a:tr')):
+            tcs = tr.findall(qn('a:tc'))
+            tr.remove(tcs[i])
+
+def fit_cols(table, want, src_idx=None):
+    """列数を want に合わせる。増やすときは src_idx 列を複製する。"""
+    cur = len(table.columns)
+    if cur == want:
+        return
+    if cur < want:
+        src = cur - 1 if src_idx is None else src_idx
+        for _ in range(want - cur):
+            add_column(table, src, len(table.columns) - 1)
+    else:
+        for r in range(len(table.rows)):
+            unspan_row(table, r)
+        del_columns(table, range(want, cur))
+
+def unmerge_v(table):
+    """表全体の縦方向の結合（rowSpan/vMerge）を解除する。
+       ヘッダー行を削ったあとに残る rowSpan が下の行のセルを飲み込むのを防ぐ。"""
+    for tr in table._tbl.findall(qn('a:tr')):
+        for tc in tr.findall(qn('a:tc')):
+            for a in ('rowSpan', 'vMerge'):
+                tc.attrib.pop(a, None)
+
 def span_row(table, r):
     """行全体を1セルに結合し直す（列を増やしたヘッダー行の復旧用）。"""
     tr = trs(table)[r]
