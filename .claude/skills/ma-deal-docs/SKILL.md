@@ -7,6 +7,8 @@ description: >
   「案件サマリーシート」「財務ハイライト」「商流図」「組織図」「分割後BS」「会社分割スキーム」「ヒアリング項目」
   などと言ったとき、または決算書・案件マスター・概要書のファイルを添付して作成・修正・更新を依頼されたときは必ずこのスキルを参照してください。
   面談議事録を渡されて「概要書の更新箇所を指摘して」と言われた場合も同様です。
+  「不動産」「登記簿」「謄本」「固定資産税課税明細」「担保」「借地」「個人所有地の買取価格」「登記簿取得リスト／確認リスト」
+  「ノンネームシート」「プロセスレター」「設備ページ」の作成・更新を頼まれたときも、このスキルを参照してください。
   数値は必ず案件マスターに集約し、パワポへ貼り付ける運用を徹底することで、複数資料間の数値不整合を防ぎます。
 ---
 
@@ -19,6 +21,17 @@ description: >
 数字をパワポに直接打ち込むと、評価書と概要書で調整後EBITDAが食い違う、分割後BSと商流図で承継額が違う、といった事故が必ず起きる。実際に起きる。だから順序は常に **①案件マスターを直す → ②パワポに貼る → ③案件特有のページを個別対応** とする。
 
 依頼が「概要書のこのページだけ直して」であっても、その数字がマスター由来なら**先にマスターを直す**。マスターを飛ばしてパワポだけ直すと、次に誰かがマスターから貼り直した瞬間に修正が消える。
+
+## 品質基準（この水準で作る）
+
+概要書は「資料を並べたもの」ではなく、**受領資料をすべて突き合わせて論点を掘り出し、買手が買いたくなる形に編集したもの**である。次の水準を満たすまで納品しない。
+
+1. **受領資料を全部読んで突き合わせる。**決算書・謄本・課税明細・共同担保目録・契約書・台帳・聴取メモを相互に照合し、食い違いを論点として拾う。差異は「未登記」「転記漏れ」「名義の相違」「担保の付け替え」など、実務上の意味に翻訳して書く
+2. **すべての数字の出所をたどれるようにする。**数字はマスターに入れ、概要書の注記に出典（「登記簿謄本65通（2026年8月14日時点）」「令和8年度固定資産税課税明細書」等）を書く。合計は必ず検算する
+3. **案件ごとに構成を設計する。**標準構成をなぞらず、その会社の魅力と論点に合わせてページを足し引きする（`references/im-structure.md`「案件ごとの構成の決め方」）
+4. **事実は隠さず、プラスを先に書く。**マイナスは「一過性」「手当て可能」「手続き中」とセットにする。未確認は「要確認」、推測は「〜と推察」
+5. **実物で検証してから納品する。**LibreOffice で描画して目視、表の構造チェック、旧版との差分、数字の波及先の検索まで行う（Step 6）
+6. **依頼の意図を汲んで一歩先まで出す。**聞かれたことに答えたうえで、その判断に必要な論点（税務・法規制・スキームへの影響）と、残っている要確認事項を添える
 
 ## 全体ワークフロー
 
@@ -33,6 +46,9 @@ description: >
 - **文字は游ゴシック、数字はArial、細かい備考は游ゴシック Medium。**タイトル・合計欄は太字
 - **確認できていないことは「要確認」と書く。**推測で埋めない。画像PDFでOCRできない、資料が未受領、といった事情はそのままシートに残す。後工程（評価書のコメント、ヒアリング項目一覧）でそのまま使える資産になる
 - 転記後は必ず**借貸一致とPL整合のチェックセル**（`BS(借方)!C63` 等の `EXACT()` 行）が TRUE であることを確認する
+- **不動産がある案件は、課税明細・謄本・共同担保目録・賃貸借契約書を突合する。**手順・チェックリスト・ページ構成は `references/real-estate.md`。謄本PDFは `scripts/registry_parse.py` で一覧化できる
+- 資料が後から追加で届いたら（別の市町村の課税明細、契約書など）、既存の区分・集計を見直す。「非事業用」としていた土地が後から本社の敷地と判明する、といったことが起きる
+- **グラフ入りのマスターは openpyxl で保存しない**（グラフが崩れる）。`scripts/xlsx_xml.py` で XML を直接編集する（`references/master-sheets.md`）
 
 ### Step 2. 評価パート（VR→ セクション）の作成
 
@@ -47,39 +63,52 @@ description: >
 ### Step 4. パワポへの反映
 
 既存の概要書テンプレート（前回案件のファイル）を複製して中身を差し替える。ページ構成と各ページの作り方は `references/im-structure.md` を読むこと。
-PowerPointファイルを壊さずに編集する具体的な手順・落とし穴は `references/pptx-ops.md` にまとめてある。**スライドの追加・削除・表の行数変更をする前に必ず読むこと。**
+PowerPointファイルを壊さずに編集する具体的な手順・落とし穴は `references/pptx-ops.md` にまとめてある。**スライドの追加・削除・表の行数変更をする前に必ず読むこと。**表の操作には `scripts/pptx_table.py` を使う（そのまま複製・拡張すると、PowerPoint でだけ「空白の列」「編集できない表」「行高の倍増」が起きる）。
+
+作る前に**構成案（ページ一覧と各ページの一言メッセージ）**を決める。表は1枚15〜18行までとし、超えるなら内容で分割する。
+
+依頼者が編集した最新版を受け取ったら、それを起点にして該当箇所だけを差し替える。作り直すと依頼者の修正が消える。
 
 ### Step 5. 案件特有の対応
 
 会社分割スキーム、事業別の制作実績ページ、商流図など、案件ごとに必要なページを追加する。
 会社分割案件の場合は `references/company-split.md` を読むこと。
+不動産（代表者個人名義の事業用地、担保、借地・貸地）がある場合は `references/real-estate.md` を読むこと。代表者個人所有地の買取価格の試算もここにある。
 
 ### Step 6. 検証
 
 納品前に必ず以下を通す。ここを飛ばすと、数式エラーが残ったExcelや、文字がはみ出したスライドが客先に出る。
 
 ```bash
-# Excel：数式エラー0件を確認（LibreOffice Calcが必要）
+# 未導入なら（Impress と Calc の両方が要る）
+apt-get install -y -q libreoffice-impress libreoffice-calc poppler-utils
+
+# Excel：数式エラー0件を確認（pptx/xlsx スキルの配置先は環境により /root/.claude/skills/ か /mnt/skills/public/）
 python /root/.claude/skills/xlsx/scripts/recalc.py <案件マスター.xlsx> 300
 
 # PowerPoint：スキーマ・関係・チャートの検証
 python /root/.claude/skills/pptx/scripts/office/validate.py <概要書.pptx> --original <元ファイル.pptx>
 
-# PowerPoint：レンダリングして目視（文字はみ出し・重なりの確認）
+# PowerPoint：描画して目視（必須。文字幅の計算だけで判断しない）
 soffice --headless --norestore -env:UserInstallation=file:///tmp/lo-qa --convert-to pdf --outdir . deck.pptx
-pdftoppm -jpeg -r 110 deck.pdf page
+pdftoppm -jpeg -r 100 -f <変更ページ> -l <変更ページ> deck.pdf page
 ```
-
-既存ページを触っていないことを主張するなら、実際に差分を取って確認する：
 
 ```python
-from pptx import Presentation
+# 表の構造チェック（ID重複・改行残存・tc順序違反・列数不一致・shape id重複 が0件であること）
+import sys; sys.path.insert(0, '<このスキルのディレクトリ>/scripts')
+from pptx_table import check_tables
+print(check_tables(Presentation('after.pptx')) or '問題なし')
+
+# 旧版との差分（表の中身も比較する）。変更したスライドだけが出ることを確認して報告する
+def sig(s):
+    return [('T:' + '|'.join(c.text for r in sh.table.rows for c in r.cells)) if sh.has_table
+            else sh.text_frame.text for sh in s.shapes if sh.has_table or sh.has_text_frame]
 a, b = Presentation('before.pptx'), Presentation('after.pptx')
-diff = [i+1 for i,(x,y) in enumerate(zip(a.slides, b.slides))
-        if [s.text_frame.text for s in x.shapes if s.has_text_frame]
-        != [s.text_frame.text for s in y.shapes if s.has_text_frame]]
-print('変更スライド:', diff)
+print('変更スライド:', [i+1 for i, (x, y) in enumerate(zip(a.slides, b.slides)) if sig(x) != sig(y)])
 ```
+
+数字を直したら、古い数字が残っていないか**概要書・マスター・確認リストの全文を検索**する（リード文・ポイント欄・注記・合計・他ページに波及している）。
 
 ## 守るべきこと
 
@@ -131,3 +160,12 @@ print('変更スライド:', diff)
 | `references/company-split.md` | 会社分割・非事業用資産の切出しがある案件のとき |
 | `references/hearing-list.md` | ヒアリング項目一覧を作るとき |
 | `references/pptx-ops.md` | パワポのスライド追加・削除・表の行数変更・図形描画をするとき |
+| `references/real-estate.md` | 不動産がある案件／謄本・課税明細・契約書を突合するとき／個人所有地の買取価格を試算するとき／登記簿取得リストを更新するとき |
+
+## 同梱スクリプト（`scripts/`）
+
+| スクリプト | 用途 |
+|---|---|
+| `registry_parse.py` | 登記簿謄本PDF（全部事項）を一括解析。所有者・取得原因・地目・地積・13桁不動産番号・現存担保（抹消済みを除外）・共同担保目録を JSON に出力 |
+| `pptx_table.py` | 概要書の表を壊さずに編集（セル差し替え・列／行の追加・表の複製）と、納品前の構造チェック `check_tables` |
+| `xlsx_xml.py` | グラフ入りの案件マスターを openpyxl を使わずに編集（セル・行・シート追加、calcChain 処理、rId 採番） |
