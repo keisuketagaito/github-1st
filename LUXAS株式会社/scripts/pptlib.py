@@ -225,6 +225,12 @@ def drop(slide, *idxs):
         el = shapes[i]._element
         el.getparent().remove(el)
 
+def clone_shape(src_slide, src_idx, dst_slide):
+    """別スライドのシェイプを複製して貼り付ける（字幕プレースホルダーの移植用）。"""
+    el = deepcopy(list(src_slide.shapes)[src_idx]._element)
+    dst_slide.shapes._spTree.append(el)
+    return list(dst_slide.shapes)[-1]
+
 def place(shape, left=None, top=None, width=None, height=None):
     if left is not None:   shape.left = Inches(left)
     if top is not None:    shape.top = Inches(top)

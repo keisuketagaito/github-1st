@@ -2,10 +2,11 @@
 """案件マスター（LUXAS株式会社）を受領資料から作成する。
    数値は円単位で入力（表示形式は千円単位に設定済み）。"""
 import openpyxl, copy, datetime
+import luxas_prog as LP
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 SRC = 'master.xlsx'
-OUT = '/home/user/github-1st/LUXAS株式会社/案件マスター_LUXAS株式会社_20260913.xlsx'
+OUT = '/home/user/github-1st/LUXAS株式会社/案件マスター_LUXAS株式会社_20260923.xlsx'
 wb = openpyxl.load_workbook(SRC)
 
 YG   = '游ゴシック'
@@ -39,7 +40,34 @@ bs['C4'] = '－'          # 第2期（決算書未受領）
 bs['D4'] = '23年11月期'
 bs['E4'] = '24年11月期'
 bs['F4'] = '25年11月期'
-bs['G4'] = '26年11月期\n（5か月TB）'
+bs['G4'] = '26年11月期\n（7か月TB）'
+
+# ---------------------------------------------------------------- 進行期の差替え
+# 2026年9月18日出力の試算表（2025年12月〜2026年6月）で進行期を7か月分に更新する。
+# 旧試算表（2026年6月26日出力・〜4月）から月次が一部修正されているため、新試算表を正とする。
+def _rowof(ws, label):
+    for r in range(1, ws.max_row + 1):
+        if ws.cell(row=r, column=2).value == label:
+            return r
+    raise KeyError(label)
+
+_bsd, _bsc = wb['BS(借方)'], wb['BS (貸方)']
+for _lab, _v in LP.BS_PROG_D.items():
+    _bsd.cell(row=_rowof(_bsd, _lab), column=7).value = _v
+for _lab, _v in LP.BS_PROG_C.items():
+    _bsc.cell(row=_rowof(_bsc, _lab), column=7).value = _v
+
+_pl = wb['PL']
+for _lab in ('生体売上高', 'サービス売上高', '物販売上高', '期首棚卸高', '商品仕入高', '外注費',
+             '他勘定振替高', '期末棚卸高', '受取利息', '受取配当金', '雑収入', '支払利息',
+             '雑損失', '棚卸資産廃棄損', '法人税等'):
+    _pl.cell(row=_rowof(_pl, _lab), column=11).value = LP.PL_PROG.get(_lab)
+_pl['K59'] = LP.NI_PROG          # 当期純利益の整合チェック用
+
+_sga = wb['SGA']
+for _lab, _v in LP.SGA_PROG.items():
+    _sga.cell(row=_rowof(_sga, _lab), column=11).value = _v or None
+
 
 # ---------------------------------------------------------------- 会社概要
 ws = wb['会社概要']
@@ -63,7 +91,7 @@ ws['C3'] = '－'
 ws['D3'] = '2023年11月期'
 ws['E3'] = '2024年11月期'
 ws['F3'] = '2025年11月期'
-ws['G3'] = '進行期(5か月TB)'
+ws['G3'] = '進行期(7か月TB)'
 ws['I4'] = None
 
 # 調整方針：M&A後に継続的に発生しない費用を戻し入れ、継続的に必要な費用は控除する。
@@ -180,61 +208,61 @@ ws['B17'].font = Font(name=YGM, size=9)
 # ---------------------------------------------------------------- 従業員
 ws = wb['従業員']
 ws['F2'] = '基準日→適宜変更'
-ws['G2'] = datetime.datetime(2026, 3, 31)
-# 個票（73名）は他社仲介資料でも匿名化されており、氏名・生年月日は未受領。
-# 本シートは店舗別・雇用形態別の人員構成として整理する。
-hdr = ['№','部署・店舗','雇用形態','役職','人数','平均年齢\n（歳）','平均勤続\n（年）',
-       '年課税支給額\n平均（円）','備考']
+ws['G2'] = datetime.datetime(2026, 9, 23)
+hdr = ['№', '部署・店舗', '正社員等\n（名）', 'アルバイト\n（名）', '合計\n（名）',
+       '平均年齢\n（歳）', '平均勤続\n年数（年）', '備考', '']
 for i, h in enumerate(hdr):
-    c = ws.cell(row=4, column=2 + i)
-    c.value = h
+    ws.cell(row=4, column=2 + i).value = h
 for col in range(11, 18):
     sset(ws, 4, col, None)
-emp = [
- ('本社','正社員（現場責任者）',1,45.0,5.3,7000000,'淺野 崇氏。代表者の配偶者。ドン・キホーテ緑店・大垣管理センターの動物取扱責任者'),
- ('ワンラブ カインズホーム明和店','正社員',3,27.0,0.5,None,'2025年12月入社1名を含む。年課税支給額は12ヶ月分の支給者なし'),
- ('ワンラブ カインズホーム明和店','アルバイト',2,26.5,1.1,None,None),
- ('ワンラブ バローミタス伊勢店','正社員',2,46.5,5.7,2623000,'うち1名が動物取扱責任者'),
- ('ワンラブ バローミタス伊勢店','アルバイト',7,30.1,2.9,1278000,'2026年1月入社1名を含む'),
- ('ワンラブ ホームセンターバロー久居店','正社員',1,43.0,5.3,2719000,'動物取扱責任者'),
- ('ワンラブ ホームセンターバロー久居店','アルバイト',6,31.8,2.3,1863000,None),
- ('ワンラブ アクアウォーク大垣店','アルバイト',4,27.5,2.1,607000,'正社員の配置なし'),
- ('ワンラブ ペットプラザ岐阜店','正社員',1,27.0,5.9,2670000,'動物取扱責任者'),
- ('ワンラブ ペットプラザ岐阜店','アルバイト',5,22.6,1.6,796000,None),
- ('ワンラブ ドン・キホーテ緑店','正社員',2,41.5,3.7,2902000,'動物取扱責任者は本社の淺野崇氏が兼務'),
- ('ワンラブ ドン・キホーテ緑店','アルバイト',4,37.3,2.4,1610000,None),
- ('おっきなもふもふ応援隊 岐阜総本店','正社員',5,37.6,1.5,2501000,'2025年12月・2026年1月入社 各1名'),
- ('おっきなもふもふ応援隊 岐阜総本店','アルバイト',7,30.6,1.2,2672000,'うち1名が動物取扱責任者'),
- ('おっきなもふもふ応援隊 大阪総本店','正社員',3,27.3,3.4,4264000,'うち1名が動物取扱責任者'),
- ('おっきなもふもふ応援隊 大阪総本店','アルバイト',10,24.9,0.7,1620000,'2025年12月2名・2026年1月1名入社'),
- ('大垣管理センター','正社員',1,29.0,1.5,2550000,'バックヤード管理／デザイナーズワン㈱の生体管理'),
- ('松阪管理センター','正社員',1,39.0,4.6,2602000,'バックヤード管理／デザイナーズワン㈱の生体管理'),
- ('松阪管理センター','アルバイト',8,38.5,0.7,None,'2025年12月1名・2026年1月3名入社'),
-]
-for i, (bu, koyou, nin, age, kin, pay, biko) in enumerate(emp):
+EMPNOTE = {
+ '本社': '代表取締役 淺野ゆう子氏および現場責任者 淺野崇氏。いずれも給与体系は「役員」',
+ 'ワンラブ カインズホーム明和店': '松阪管理センターと一体で運営されていると推察',
+ 'ワンラブ バローミタス伊勢店': None,
+ 'ワンラブ ホームセンターバロー久居店': None,
+ 'ワンラブ ドン・キホーテ緑店': None,
+ 'おっきなもふもふ応援隊 岐阜総本店': None,
+ 'おっきなもふもふ応援隊 大阪総本店': None,
+ '松阪管理センター': 'バックヤード管理／デザイナーズワン㈱の生体管理',
+}
+for i, (dep, sei, arb, tot_, age, ten) in enumerate(LP.EMPLOYEES):
     r = 5 + i
-    if r > 34:
-        break
     ws.cell(row=r, column=2).value = i + 1
-    ws.cell(row=r, column=3).value = bu
-    ws.cell(row=r, column=4).value = koyou
-    ws.cell(row=r, column=5).value = None
-    ws.cell(row=r, column=6).value = nin
+    ws.cell(row=r, column=3).value = dep
+    ws.cell(row=r, column=4).value = sei
+    ws.cell(row=r, column=5).value = arb
+    ws.cell(row=r, column=6).value = tot_
     ws.cell(row=r, column=7).value = age
-    ws.cell(row=r, column=8).value = kin
-    ws.cell(row=r, column=9).value = pay
-    ws.cell(row=r, column=10).value = biko
-    for col in range(11, 18):
+    ws.cell(row=r, column=8).value = ten
+    ws.cell(row=r, column=9).value = EMPNOTE.get(dep)
+    for col in range(10, 18):
         sset(ws, r, col, None)
-r = 5 + len(emp)
+r = 5 + len(LP.EMPLOYEES)
 ws.cell(row=r, column=3).value = '合計'
-ws.cell(row=r, column=6).value = f'=SUM(F5:F{r-1})'
+ws.cell(row=r, column=4).value = LP.EMP_TOTAL[0]
+ws.cell(row=r, column=5).value = LP.EMP_TOTAL[1]
+ws.cell(row=r, column=6).value = LP.EMP_TOTAL[2]
 ws.cell(row=r + 2, column=2).value = (
- '※出所：他社仲介作成の企業概要書「従業員一覧①〜⑤」（対象会社提供の社員データ・賃金台帳／2025年11月・2026年3月受領）。'
- '年齢・勤続年数は2026年4月末時点。氏名・生年月日・入社年月日の個票は未受領のため、店舗別・雇用形態別に集計して記載（要確認）。\n'
- '※年課税支給額（2025年1月〜12月）は12ヶ月分の支給者のみを対象に平均を算定。賞与制度・退職金制度はいずれも無し。\n'
- '※役員1名＋正社員20名＋アルバイト53名＝計73名。決算書「売上高等の事業所別内訳書」の期末従事員数は66名（2025年11月30日時点）。')
+ '※出所：対象会社提供「従業員名簿（全従業員195名）」（CSV）。'
+ '退職年月日が入力されていない49名を2026年9月時点の在籍者として集計した。\n'
+ '※本名簿は2026年8月27日入社・同年8月31日退職までを収録しており、進行期の異動を反映している。'
+ '2025年12月以降の入社者44名（うち在籍14名）が含まれるため、在籍49名は足元の実態と整合する。\n'
+ '※撤退したアクアウォーク大垣店・ペットプラザ岐阜店および大垣管理センターには在籍者がいない。'
+ 'これは店舗別試算表で両店の売上が2026年1月・2月で終了していることと整合する。\n'
+ '※平均年齢・平均勤続年数は2026年9月23日時点。役員2名は入社日の登録がないため勤続年数の集計対象外。\n'
+ '※195名のうち146名が退職済。2025年12月以降の退職者は57名（うち大垣店6名・岐阜店4名・大垣管理センター1名）。\n'
+ '※氏名・生年月日・住所を含む個票を受領済。買手候補への開示資料にはイニシャル等の匿名化を行ったうえで記載する。')
 ws.cell(row=r + 2, column=2).font = Font(name=YGM, size=9)
+for r2 in range(5, 35):
+    for col in range(2, 18):
+        cell = ws.cell(row=r2, column=col)
+        if r2 > 5 + len(LP.EMPLOYEES) or (isinstance(cell.value, str) and cell.value.startswith('=ROUNDDOWN')):
+            if r2 != r and r2 != r + 2:
+                sset(ws, r2, col, None)
+        if col in (7, 8):
+            cell.number_format = '0.0;;"－"'
+        elif col in (4, 5, 6):
+            cell.number_format = '0;;"－"'
 
 # ---------------------------------------------------------------- 拠点(本社等)
 ws = wb['拠点(本社等)']
@@ -377,7 +405,8 @@ ws['L2'] = '(単位：千円)'
 ws['L2'].font = Font(name=YGM, size=9)
 ws['L2'].alignment = Alignment(horizontal='right')
 head = ['№','事業所名','業態','所在地','2023年11月期','構成比','2024年11月期','構成比',
-        '2025年11月期','構成比','期末棚卸高\n(25/11期)','期末従事\n員数(名)']
+        '2025年11月期','構成比','進行期7か月\n(25/12〜26/6)','構成比',
+        '期末棚卸高\n(25/11期)','期末従事\n員数(名)']
 for i, h in enumerate(head):
     c = ws.cell(row=4, column=2 + i)
     c.value = h
@@ -386,73 +415,207 @@ for i, h in enumerate(head):
     c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
     c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
 tenpo_uri = [
- ('本社（セキュリティ事業）','非店舗','岐阜県大垣市', 12996480,  8908600,  5508219, None, 3),
- ('本社（サービス・物販）','非店舗','岐阜県大垣市', 15610820, 18397207, 22125782, 44000000, None),
- ('ワンラブ カインズホーム明和店','FC／インショップ','三重県多気郡明和町', 65416318, 67267220, 37216460, 21818576, 9),
- ('ワンラブ バローミタス伊勢店','FC／インショップ','三重県伊勢市', 88527370, 75571000, 66609459, 2985224, 8),
- ('ワンラブ ホームセンターバロー久居店','FC／インショップ','三重県津市', 66886986, 62981034, 57326532, 2814741, 7),
- ('ワンラブ アクアウォーク大垣店','FC／インショップ','岐阜県大垣市', 50138278, 43305102, 38021413, 3045850, 6),
- ('ワンラブ ペットプラザ岐阜店','FC／インショップ','岐阜県岐阜市', 32770375, 20636067, 18944680, 2459389, 6),
- ('ワンラブ ドン・キホーテ緑店','FC／インショップ','愛知県名古屋市緑区', None, 19793315, 51761466, 3747447, 6),
- ('ワンラブ コメリパワー中志段味店','FC／インショップ','愛知県名古屋市守山区', 43554994, 29765016, None, None, None),
- ('おっきなもふもふ応援隊 岐阜総本店','大型犬専門／路面店','岐阜県羽島郡岐南町', 98526700, 157755564, 118491175, 6566330, 11),
- ('おっきなもふもふ応援隊 大阪総本店','大型犬専門／路面店','大阪府茨木市', None, 34654894, 142384548, 8579727, 10),
- ('デザイナーズワン株式会社（仕入先預け在庫）','－','愛知県一宮市', None, None, None, 10000000, None),
+ ('本社（セキュリティ事業）','非店舗','岐阜県大垣市', 12996480,  8908600,  5508219, 2944810, None, 3),
+ ('本社（サービス・物販）','非店舗','岐阜県大垣市', 15610820, 18397207, 22125782, 13650127, 44000000, None),
+ ('ワンラブ カインズホーム明和店','FC／インショップ','三重県多気郡明和町', 65416318, 67267220, 37216460, 25108810, 21818576, 9),
+ ('ワンラブ バローミタス伊勢店','FC／インショップ','三重県伊勢市', 88527370, 75571000, 66609459, 40221277, 2985224, 8),
+ ('ワンラブ ホームセンターバロー久居店','FC／インショップ','三重県津市', 66886986, 62981034, 57326532, 33840444, 2814741, 7),
+ ('ワンラブ アクアウォーク大垣店 ※2026年2月撤退','FC／インショップ','岐阜県大垣市', 50138278, 43305102, 38021413, 6112430, 3045850, 6),
+ ('ワンラブ ペットプラザ岐阜店 ※2026年1月撤退','FC／インショップ','岐阜県岐阜市', 32770375, 20636067, 18944680, 1842692, 2459389, 6),
+ ('ワンラブ ドン・キホーテ緑店','FC／インショップ','愛知県名古屋市緑区', None, 19793315, 51761466, 36963203, 3747447, 6),
+ ('ワンラブ コメリパワー中志段味店 ※2024年6月譲渡','FC／インショップ','愛知県名古屋市守山区', 43554994, 29765016, None, None, None, None),
+ ('おっきなもふもふ応援隊 岐阜総本店','大型犬専門／路面店','岐阜県羽島郡岐南町', 98526700, 157755564, 118491175, 60022946, 6566330, 11),
+ ('おっきなもふもふ応援隊 大阪総本店','大型犬専門／路面店','大阪府茨木市', None, 34654894, 142384548, 58446704, 8579727, 10),
+ ('デザイナーズワン株式会社（仕入先預け在庫）','－','愛知県一宮市', None, None, None, None, 10000000, None),
 ]
 r0 = 5
-for i, (name, gyotai, addr, v23, v24, v25, tana, nin) in enumerate(tenpo_uri):
+for i, (name, gyotai, addr, v23, v24, v25, vpg, tana, nin) in enumerate(tenpo_uri):
     r = r0 + i
-    vals = [i + 1, name, gyotai, addr, v23, None, v24, None, v25, None, tana, nin]
+    vals = [i + 1, name, gyotai, addr, v23, None, v24, None, v25, None, vpg, None, tana, nin]
     for j, v in enumerate(vals):
         c = ws.cell(row=r, column=2 + j)
         c.value = v
         c.border = Border(left=box, right=box, top=box, bottom=box)
-    for col, tot in ((7, 'F'), (9, 'H'), (11, 'J')):
+    for col in (7, 9, 11, 13):
         src = ws.cell(row=r, column=col - 1).coordinate[0]
         ws.cell(row=r, column=col).value = f'=IFERROR({src}{r}/{src}${r0+len(tenpo_uri)},"")'
-    for col in (2, 12, 13):
+    for col in (2, 14, 15):
         ws.cell(row=r, column=col).font = Font(name=ARIAL, size=9)
         ws.cell(row=r, column=col).alignment = Alignment(horizontal='center')
     for col in (3, 4, 5):
         ws.cell(row=r, column=col).font = Font(name=YG, size=9)
-    for col in (6, 8, 10, 12):
+    for col in (6, 8, 10, 12, 14):
         ws.cell(row=r, column=col).font = Font(name=ARIAL, size=9)
         ws.cell(row=r, column=col).number_format = '#,##0,;[Red]\\-#,##0,;"－"'
-    for col in (7, 9, 11):
+    for col in (7, 9, 11, 13):
         ws.cell(row=r, column=col).font = Font(name=ARIAL, size=9, italic=True)
         ws.cell(row=r, column=col).number_format = '0.0%'
-    ws.cell(row=r, column=13).number_format = '0;;"－"'
+    ws.cell(row=r, column=15).number_format = '0;;"－"'
 rt = r0 + len(tenpo_uri)
 ws.cell(row=rt, column=3).value = '合計'
-for col in (6, 8, 10, 12, 13):
+for col in (6, 8, 10, 12, 14, 15):
     L = ws.cell(row=rt, column=col).coordinate[0]
     ws.cell(row=rt, column=col).value = f'=SUM({L}{r0}:{L}{rt-1})'
-for col in range(2, 14):
+for col in range(2, 16):
     c = ws.cell(row=rt, column=col)
     c.fill = PatternFill('solid', fgColor=PALE)
     c.border = Border(left=box, right=box, top=box, bottom=box)
-    if col in (6, 8, 10, 12):
+    if col in (6, 8, 10, 12, 14):
         c.font = Font(name=ARIAL, size=9, bold=True)
         c.number_format = '#,##0,;[Red]\\-#,##0,;"－"'
-    elif col == 13:
+    elif col == 15:
         c.font = Font(name=ARIAL, size=9, bold=True); c.number_format = '0;;"－"'
         c.alignment = Alignment(horizontal='center')
     else:
         c.font = Font(name=YG, size=9, bold=True)
-for col in (7, 9, 11):
+for col in (7, 9, 11, 13):
     ws.cell(row=rt, column=col).value = '－'
     ws.cell(row=rt, column=col).font = Font(name=ARIAL, size=9, bold=True)
     ws.cell(row=rt, column=col).alignment = Alignment(horizontal='center')
 note = ws.cell(row=rt + 2, column=2)
-note.value = ('※出所：第3期〜第5期 決算報告書「売上高等の事業所別内訳書」。PL売上高（474,428／539,035／558,390千円）と一致することを確認済。\n'
+note.value = ('※出所：第3期〜第5期 決算報告書「売上高等の事業所別内訳書」、および店舗別（部門別）勘定科目残高推移表 2025年12月〜2026年6月。'
+ '各期のPL売上高（474,428／539,035／558,390／279,153千円）と一致することを確認済。\n'
  '※コメリパワー中志段味店は2024年6月に譲渡。ドン・キホーテ緑店は2024年7月、おっきなもふもふ応援隊 大阪総本店は2024年10月に開店。\n'
- '※他社仲介作成の企業概要書は「店舗6箇所」「2024年11月期の店舗別売上高」を記載しているが、2025年11月期時点の稼働店舗は8店舗である。\n'
- '※2026年1月末に赤字店舗（2店舗）を撤退済とのヒアリング。撤退店舗の特定および進行期の店舗別売上は要確認。')
+ '※ペットプラザ岐阜店は2026年1月、アクアウォーク大垣店は2026年2月をもって売上計上が終了しており、両店が撤退した2店舗である'
+ '（店舗別試算表および従業員名簿の在籍状況により確認）。2026年3月以降の稼働店舗は6店舗。\n'
+ '※本社（サービス・物販）の進行期13,650千円は月額約195万円で計上されており、ペット保険の代理店手数料と推察される（仮説・要確認）。')
 note.font = Font(name=YGM, size=9)
 note.alignment = Alignment(wrap_text=False)
-for col, w in zip('BCDEFGHIJKLMN', (4, 34, 18, 20, 13, 8, 13, 8, 13, 8, 13, 10, 4)):
+for col, w in zip('BCDEFGHIJKLMNOP', (4, 36, 18, 20, 13, 8, 13, 8, 13, 8, 14, 8, 13, 10, 4)):
     ws.column_dimensions[col].width = w
 ws.freeze_panes = 'C5'
+
+# ---------------------------------------------------------------- 店舗別損益（進行期）
+# 出所：店舗別（部門別）勘定科目残高推移表 2025年12月〜2026年6月
+if '店舗別損益' in wb.sheetnames:
+    del wb['店舗別損益']
+ws = wb.create_sheet('店舗別損益', wb.sheetnames.index('店舗別売上') + 1)
+ws.sheet_view.showGridLines = False
+NAVY = '0B3041'; PALE = 'E1F3FB'
+thin = Side(style='thin', color='FFFFFF')
+box = Side(style='thin', color='BFBFBF')
+BOX = Border(left=box, right=box, top=box, bottom=box)
+ws['B2'] = '店舗別（部門別）損益　進行期7か月累計（2025年12月〜2026年6月）'
+ws['B2'].font = Font(name=YG, size=11, bold=True, color=NAVY)
+ws['K2'] = '(単位：千円)'
+ws['K2'].font = Font(name=YGM, size=9)
+ws['K2'].alignment = Alignment(horizontal='right')
+head = ['№', '部門', '業態', '状況', '売上高', '構成比', '売上総利益', '粗利率',
+        '販管費', '営業利益', '営業利益率']
+for i, h in enumerate(head):
+    c = ws.cell(row=4, column=2 + i)
+    c.value = h
+    c.font = Font(name=YG, size=9, bold=True, color='FFFFFF')
+    c.fill = PatternFill('solid', fgColor=NAVY)
+    c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+def _put_store(r, no, name, gyotai, jokyo, sales, gp, sga, op, emph=False):
+    vals = [no, name, gyotai, jokyo, sales, None, gp, None, sga, op, None]
+    for j, v in enumerate(vals):
+        c = ws.cell(row=r, column=2 + j)
+        c.value = v
+        c.border = BOX
+        if emph:
+            c.fill = PatternFill('solid', fgColor=PALE)
+    for col, src in ((7, 6), (9, 8), (12, 11)):   # 構成比・粗利率・営業利益率
+        L = ws.cell(row=r, column=src).coordinate[0]
+        ws.cell(row=r, column=col).value = (
+            f'=IFERROR({L}{r}/$F${rt},"")' if col == 7 else f'=IFERROR({L}{r}/$F{r},"")')
+        ws.cell(row=r, column=col).number_format = '0.0%;-0.0%;"－"'
+        ws.cell(row=r, column=col).font = Font(name=ARIAL, size=9, italic=True, bold=emph)
+    for col in (2, 6, 8, 10, 11):
+        ws.cell(row=r, column=col).font = Font(name=ARIAL, size=9, bold=emph)
+        if col != 2:
+            ws.cell(row=r, column=col).number_format = '#,##0,;[Red]△ #,##0,;"－"'
+        else:
+            ws.cell(row=r, column=col).alignment = Alignment(horizontal='center')
+    for col in (3, 4, 5):
+        ws.cell(row=r, column=col).font = Font(name=YG, size=9, bold=emph)
+
+ROWS = []
+for i, (name, gyotai, jokyo, sales, gp, sga, op, _m) in enumerate(LP.STORE_PL):
+    ROWS.append((i + 1, name, gyotai, jokyo, sales, gp, sga, op, False))
+ROWS.append((None, '【稼働6店舗 小計】', '－', '－',
+             sum(x[3] for x in LP.STORE_PL), sum(x[4] for x in LP.STORE_PL),
+             sum(x[5] for x in LP.STORE_PL), sum(x[6] for x in LP.STORE_PL), True))
+for i, (name, gyotai, jokyo, sales, gp, sga, op, _m) in enumerate(LP.STORE_CLOSED):
+    ROWS.append((7 + i, name, gyotai, jokyo, sales, gp, sga, op, False))
+for name, gyotai, jokyo, sales, gp, sga, op, _m in LP.STORE_OTHER:
+    ROWS.append((None, name, gyotai, jokyo, sales, gp, sga, op, False))
+ROWS.append((None, '【合計】', '－', '－', *LP.COMPANY_TOTAL, True))
+
+r0 = 5
+rt = r0 + len(ROWS) - 1          # 合計行（構成比の分母）
+for i, (no, name, gyotai, jokyo, sales, gp, sga, op, emph) in enumerate(ROWS):
+    _put_store(r0 + i, no, name, gyotai, jokyo, sales, gp, sga, op, emph)
+note = ws.cell(row=rt + 2, column=2)
+note.value = (
+ '※出所：店舗別（部門別）勘定科目残高推移表 2025年12月〜2026年6月（2026年9月18日出力）。'
+ '部門別の合計は全社の試算表（売上高279,153千円・営業利益6,637千円）と一致することを確認済。\n'
+ '※店舗別の営業利益は本社費を配賦する前の「店舗貢献利益」であり、本社費等は共通部門に一括計上されている。\n'
+ '※共通部門の売上13,650千円は、月額約195万円で計上されているサービス売上高であり、'
+ 'ペット保険の代理店手数料と推察される（仮説・要確認）。\n'
+ '※共通部門の売上原価46,604千円は、本社で仕入れた商品（92,274千円のうち40,994千円）および外注費5,610千円が'
+ '各店舗へ振り替えられずに共通部門に残っているものと推察される（仮説・要確認）。'
+ 'このため店舗別の粗利・営業利益は実力値より過大に表示されている可能性があり、解釈には留意を要する。\n'
+ '※明和店の販管費には松阪管理センターの人件費が含まれていると推察される'
+ '（棚卸表でも松阪管理センターの在庫19,669千円が明和店に含めて計上されている）。\n'
+ '※大垣管理センターは2026年2月以降、費用のマイナス計上（振替）のみとなっている。')
+note.font = Font(name=YGM, size=9)
+note.alignment = Alignment(vertical='top')
+for col, w in zip('BCDEFGHIJKLM', (4, 34, 17, 16, 13, 9, 13, 9, 13, 13, 10, 4)):
+    ws.column_dimensions[col].width = w
+ws.freeze_panes = 'C5'
+
+# ---------------------------------------------------------------- 棚卸明細
+if '棚卸明細' in wb.sheetnames:
+    del wb['棚卸明細']
+ws = wb.create_sheet('棚卸明細', wb.sheetnames.index('店舗別損益') + 1)
+ws.sheet_view.showGridLines = False
+ws['B2'] = '棚卸資産の内訳（2025年12月1日時点＝2025年11月期末）'
+ws['B2'].font = Font(name=YG, size=11, bold=True, color=NAVY)
+ws['J2'] = '(単位：千円／税抜)'
+ws['J2'].font = Font(name=YGM, size=9)
+ws['J2'].alignment = Alignment(horizontal='right')
+head = ['拠点', '生体：アクア', '生体：小動物', '生体：犬猫', '生体 小計', '物販',
+        '合計', '決算書の計上額', '備考']
+for i, h in enumerate(head):
+    c = ws.cell(row=4, column=2 + i)
+    c.value = h
+    c.font = Font(name=YG, size=9, bold=True, color='FFFFFF')
+    c.fill = PatternFill('solid', fgColor=NAVY)
+    c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+for i, row in enumerate(LP.INVENTORY):
+    r = 5 + i
+    emph = row[0].startswith('【')
+    for j, v in enumerate(row):
+        c = ws.cell(row=r, column=2 + j)
+        c.value = v
+        c.border = BOX
+        if emph:
+            c.fill = PatternFill('solid', fgColor=PALE)
+        if j == 0:
+            c.font = Font(name=YG, size=9, bold=emph)
+        elif j == 8:
+            c.font = Font(name=YGM, size=9)
+        else:
+            c.font = Font(name=ARIAL, size=9, bold=emph)
+            c.number_format = '#,##0,;[Red]△ #,##0,;"－"'
+ws.cell(row=5 + len(LP.INVENTORY) + 2, column=2).value = (
+ '※出所：対象会社作成「棚卸表 2025年12月1日時点（最終版）」。全社合計106,017,284円は第5期決算書の商品残高と一致する。\n'
+ '※本社32,000千円＋バックヤード12,000千円＝44,000千円は、進行期の2026年3月に棚卸資産廃棄損として全額を特別損失に計上している。\n'
+ '※外部保管分10,000千円は仕入先デザイナーズワン株式会社（代表者の親族が経営）への預け在庫。'
+ '2026年6月末の商品残高58,446千円のうち同額が含まれているかは要確認。\n'
+ '※「決算書の計上額」は第5期決算報告書「売上高等の事業所別内訳書」の期末棚卸高。'
+ '松阪管理センターは明和店に、中志段味店は緑店に含めて計上されている。')
+ws.cell(row=5 + len(LP.INVENTORY) + 2, column=2).font = Font(name=YGM, size=9)
+ws.cell(row=5 + len(LP.INVENTORY) + 2, column=2).alignment = Alignment(vertical='top')
+for col, w in zip('BCDEFGHIJK', (36, 12, 12, 12, 12, 12, 13, 13, 46, 4)):
+    ws.column_dimensions[col].width = w
+ws.freeze_panes = 'C5'
+
 
 # ---------------------------------------------------------------- その他（要確認事項）
 ws = wb['その他']
@@ -467,70 +630,78 @@ for i, h in enumerate(hdr):
     c.fill = PatternFill('solid', fgColor=NAVY)
     c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 items = [
- ('店舗','2026年1月末に撤退した赤字2店舗の特定と、撤退に伴う損失・原状回復費用の有無',
-  '他社仲介資料に「小型犬を中心に粗利の確保が難しく2店舗が赤字で着地。2026年1月末で撤退済」との記載。'
-  '2025年11月期の店舗別売上ではカインズホーム明和店が前期比△45%（67,267→37,216千円）と最も減少しており、'
-  '同店を含むと推察（仮説）','対象会社ヒアリング／進行期の店舗別試算表'),
- ('財務','進行期（2026年11月期）の棚卸資産廃棄損 44,000千円の内容',
-  '2026年3月に他勘定振替高△44,000千円／棚卸資産廃棄損44,000千円を計上。'
-  '2025年11月期末の「本社管理分」在庫44,000千円と同額であり、当該在庫の一括廃棄と推察（仮説）。'
-  '在庫評価の適正性に関わる重要論点','対象会社ヒアリング／在庫明細・廃棄証憑'),
- ('財務','進行期の減価償却費が月次で未計上',
-  '進行期5か月TBの販管費に減価償却費の計上なし。通期では年6,000千円程度の償却負担が想定される（仮説）',
-  '対象会社・顧問税理士ヒアリング'),
- ('財務','2025年11月期の営業赤字△19,552千円と、進行期5か月の営業黒字+17,465千円の乖離要因',
-  '進行期5か月（12〜4月）売上は前年同期比81.8%と減少する一方、営業利益は+17,465千円。'
-  '12月〜1月が最需要期であること、および赤字店舗撤退の効果によると推察（仮説）。'
-  '通期でどこまで黒字が残るかが本件の最大の論点','月次推移表（12か月分）の受領'),
- ('収益モデル','ペット保険の収益構造（初年度40%・次年度以降10%の継続手数料）と、年間保険収入約19,000千円の裏付け',
-  '他社仲介資料に「手術特約の加入率約75%（全国平均約50%）、毎年約1,900万円程の保険収入」との記載。'
-  'PL上は「サービス売上高」52,699千円（2025年11月期）に含まれると推察（仮説）',
+ ('【解決済】店舗','2026年1月末に撤退した赤字2店舗の特定',
+  '店舗別試算表により、ペットプラザ岐阜店が2026年1月、アクアウォーク大垣店が2026年2月をもって'
+  '売上計上を終了していることを確認。従業員名簿でも両店および大垣管理センターに在籍者がおらず整合する。'
+  '進行期7か月の両店合計は売上7,955千円・営業損失4,086千円',
+  '解決（2026年9月受領資料）。撤退に伴う原状回復費用・違約金の有無は引き続き要確認'),
+ ('【解決済】資産','進行期に計上された棚卸資産廃棄損44,000千円の内容',
+  '棚卸表（2025年12月1日時点）により、本社32,000千円＋バックヤード12,000千円＝44,000千円と一致することを確認',
+  '解決（2026年9月受領資料）。廃棄に至った理由・処分方法・証憑は引き続き要確認'),
+ ('財務','2026年7月以降の月次試算表',
+  '2025年12月〜2026年6月の7か月分を受領済。進行期7か月の売上279,153千円（前年同期比80.9%）、'
+  '営業利益6,637千円（同48.2%）。通期の着地見込みを判断するには下期の実績が必要',
+  '対象会社・顧問税理士へ依頼'),
+ ('財務','進行期に未計上の減価償却費・法定福利費',
+  '進行期の月次には減価償却費の科目が立っていない（2025年11月期の通期実績6,349千円）。'
+  '法定福利費も7か月累計2,778千円と通期実績15,295千円に比して低く、期中の未計上分が下期に乗る可能性がある',
+  '顧問税理士へ確認'),
+ ('財務','共通部門に残る仕入原価の配賦',
+  '店舗別試算表では、本社で仕入れた商品40,994千円および外注費5,610千円が各店舗へ振り替えられず'
+  '共通部門の売上原価に残っている（共通部門の売上原価46,604千円＝本社仕入40,994千円＋外注費5,610千円）。'
+  'このため店舗別の粗利・営業利益は実力値より過大に表示されている可能性がある（仮説）',
+  '対象会社ヒアリング（本社仕入分の店舗への配分方法）'),
+ ('財務','2026年5月の租税公課4,969千円の内容',
+  '5月単月で4,969千円を計上（7か月累計5,281千円の94%）。自動車税・固定資産税等の年次課税と推察（仮説）。'
+  '同月の営業損失5,152千円の主因',
+  '対象会社ヒアリング／総勘定元帳'),
+ ('店舗収益','明和店の販管費が売上に対して突出している要因',
+  '進行期7か月で売上25,109千円に対し販管費18,977千円（75.6%）。'
+  '他のFC加盟店（伊勢35.2%・久居39.4%・緑37.6%）と比べて著しく高く、'
+  '松阪管理センターの人件費が明和店に含まれていると推察（棚卸表でも松阪管理センターの在庫19,669千円が'
+  '明和店に含めて計上されている）（仮説）',
+  '対象会社ヒアリング（部門設定の考え方）'),
+ ('収益モデル','ペット保険の代理店手数料',
+  '共通部門のサービス売上高が月額約195万円で計上されており、7か月累計13,650千円（年換算23,400千円）。'
+  '他社仲介資料の「年間約19,000千円の保険収入」との聴取と概ね整合し、同手数料と推察（仮説）',
   '対象会社ヒアリング／アイペット損保との代理店手数料明細'),
- ('収益モデル','FC本部（㈲ワンラブ）へのロイヤリティと店舗使用料の関係',
-  'ロイヤリティは45,990／39,848／29,982千円と減少傾向。FC店の店舗使用料（売上歩合11〜15%）が'
-  'ロイヤリティに含まれる建て付けと推察（仮説）。FC店売上に対する比率で検証が必要',
-  'フランチャイズ契約書・出店契約公正証書の受領'),
- ('契約','COC条項（チェンジ・オブ・コントロール条項）への対応',
-  '明和店・伊勢店・久居店およびおっきなもふもふ岐阜総本店・大阪総本店の契約書にCOC条項あり'
-  '（資本構成の重大な変更時は書面による届出要、合併時は契約解除可）。緑店は確認中',
-  '各契約書の受領・条項の精査／FC本部および賃貸人への事前相談'),
- ('契約','定期建物賃貸借の再契約可否',
-  '岐阜総本店（2033年1月満了）は再契約が要確認、大阪総本店（2027年11月満了）は協議のうえ可とのこと。'
-  '大阪総本店は売上142,384千円と最大店舗であり、期限が2027年11月と近い点が重要',
-  '賃貸借契約書・賃貸人ヒアリング'),
- ('組織','淺野　崇氏（代表者配偶者・現場責任者）の譲渡後の継続関与',
-  '正常収益力の算定において、同氏が役員に就任し現行と同水準の役員報酬（14,400千円）を受ける前提を置いている。'
-  '同氏は2店舗の動物取扱責任者を兼務するキーパーソンであり、継続関与が得られない場合は収益力・許認可の双方に影響',
+ ('【解決済】人事','進行期を含む最新の従業員名簿',
+  '名簿195名（2026年8月27日入社・同年8月31日退職まで収録）を受領。退職日の入力がない49名を在籍者として集計。'
+  '2025年12月以降の入社44名・退職57名を織り込んでおり、足元の在籍実態を反映している',
+  '2026年9月受領の従業員名簿で確認済'),
+ ('人事','現場責任者 淺野崇氏の譲渡後の継続関与',
+  '従業員名簿上、同氏の給与体系は「役員」・区分は「社員」。正常収益力の算定において'
+  '同氏が役員に就任し現行と同水準の役員報酬を受ける前提を置いている。'
+  '同氏はドン・キホーテ緑店および大垣管理センターの動物取扱責任者を兼務するキーパーソン',
   '対象会社ヒアリング（意向確認）'),
- ('許認可','動物取扱責任者の配置状況と、許可の更新期限',
-  '第一種動物取扱業許可は8事業所で取得。明和店・久居店は2026年5月20日、アクアウォーク大垣店は2026年11月29日に'
-  '有効期間が満了。動物取扱責任者は各店に配置されているが、退職時の代替要員は要確認',
-  '許可証の写し／動物取扱責任者名簿'),
- ('人事','就業規則の届出内容',
-  '10名以上の事業所ごとに届出あり、内容は確認中。賞与・退職金制度はいずれも無し（ヒアリングベース）',
-  '就業規則・賃金規程の受領'),
- ('資産','2025年11月期に取得した土地（大垣市南若森町字柳原227番3・89.4㎡・簿価2,974千円）の用途と時価',
-  '駐車場として計上。固定資産税評価額が未受領のため時価は未算定',
-  '固定資産税評価証明書／登記簿謄本'),
- ('資産','リース車両（メルセデス・ベンツ2台）の解約条件と違約金',
-  'GLE Coupe 月195千円（2024年9月〜60ヶ月）、GLS 月212千円（2024年12月〜60ヶ月）。'
-  '本件実行後に解約予定とのことだが、中途解約金の有無・金額は未確認',
-  'リース契約書の受領'),
- ('資産','BMW X7の売却時期',
-  '2025年11月期の減価償却内訳明細書では期中売却（売却損968千円）となっている一方、'
-  '他社仲介資料は「進行期に売却済」と記載。決算書ベースでは2025年11月期中の売却が正',
-  '固定資産台帳・売買契約書'),
- ('関係会社取引','デザイナーズワン株式会社（代表者親族が経営）との取引',
-  '同社から生体を仕入（10,500／12,280／9,400千円）。当社は同社の営業権を保有（簿価1,500千円）。'
-  '大垣・松阪の両管理センターで同社の生体を管理し、2025年11月期末に同社預け在庫10,000千円を計上。'
-  '取引条件の妥当性および営業権の実質的価値は要確認',
+ ('契約','フランチャイズ契約書および店舗賃貸借契約書',
+  'FC本部（㈲ワンラブ）との契約内容、店舗使用料の料率、COC条項の詳細が未確認。'
+  '定期建物賃貸借（岐阜総本店2033年1月／大阪総本店2027年11月満了）の再契約見通しも要確認',
+  '対象会社へ依頼（必要資料No.12・13）'),
+ ('資産','外部保管在庫10,000千円の実在性',
+  '2025年11月期末の棚卸表に「外部保管分10,000千円（生体）」として計上。'
+  '仕入先デザイナーズワン株式会社（代表者の親族が経営）への預け在庫と推察。'
+  '2026年6月末の商品残高58,446千円に同額が含まれているかは未確認',
+  '対象会社ヒアリング／預け在庫の残高証明'),
+ ('資産','2026年6月に取得した車両運搬具438千円',
+  '車両運搬具が2026年5月末1,058千円から6月末1,495千円へ増加。事業用・非事業用の別は未確認',
+  '対象会社ヒアリング／固定資産台帳'),
+ ('資産','営業権1,500千円の取得経緯・算定根拠',
+  '仕入先であるデザイナーズワン株式会社（代表者の親族が経営）に係るもの',
   '取引契約書／営業権の取得経緯・算定根拠'),
- ('財務','本社所在地（代表者自宅）の賃貸借（年1,000千円）の譲渡後の取扱い',
+ ('許認可','動物取扱責任者の配置状況と許可の更新',
+  '第一種動物取扱業許可は2025年11月期末時点で8事業所。'
+  '撤退したアクアウォーク大垣店（2026年11月29日満了）・ペットプラザ岐阜店（2027年1月31日満了）の'
+  '廃業届の提出状況、および明和店・久居店（2026年5月20日満了）の更新状況が未確認',
+  '許可証の写し／動物取扱責任者名簿'),
+ ('財務','借入金の返済予定と月次での据置き',
+  '長期借入金は月次試算表では期首残高191,858千円のまま据え置かれており、返済額は決算時に'
+  '一括計上されていると推察（仮説）。役員借入金は7,566千円（2025年11月期末）から'
+  '3,403千円（2026年6月末）へ減少している',
+  '金融機関別の返済予定表（必要資料No.5）'),
+ ('財務','本社所在地（代表者自宅）の賃貸借の譲渡後の取扱い',
   '貸主は個人。本社は登記上の本店かつ代表者自宅であり、譲渡後の本店移転・契約継続の要否を整理する必要',
   '対象会社ヒアリング'),
- ('財務','未払消費税等 11,784千円（2025年11月期末）の納付状況',
-  '前期3,776千円から大幅に増加。進行期TBでは2026年4月末時点で8,447千円が未納のまま推移',
-  '納付書控／資金繰り表'),
  ('プロセス関連（社内確認事項）','他社仲介の併走状況',
   '2025年11月期末の仮払金1,650千円は他社仲介への支払（着手金等）と認められる。'
   '本項は社内確認事項であり、買手候補への開示資料には記載しない',
@@ -553,7 +724,7 @@ for col, w in zip('BCDEF', (4, 16, 40, 66, 32)):
 ws.freeze_panes = 'C5'
 
 # ---------------------------------------------------------------- 月次推移（進行期）
-# 出所：勘定科目残高推移表 2025年12月〜2026年4月（2026年6月26日付）
+# 出所：勘定科目残高推移表 2025年12月〜2026年6月（2026年9月18日出力）
 if '月次推移' in wb.sheetnames:
     del wb['月次推移']
 ws = wb.create_sheet('月次推移', wb.sheetnames.index('PLハイライト'))
@@ -563,39 +734,13 @@ thin = Side(style='thin', color='FFFFFF')
 box = Side(style='thin', color='BFBFBF')
 BOX = Border(left=box, right=box, top=box, bottom=box)
 
-ws['B2'] = '進行期（2026年11月期）の月次推移　※2025年12月〜2026年4月の5か月'
+ws['B2'] = '進行期（2026年11月期）の月次推移　※2025年12月〜2026年6月の7か月'
 ws['B2'].font = Font(name=YG, size=11, bold=True, color=NAVY)
-ws['J2'] = '(単位：千円)'
-ws['J2'].font = Font(name=YGM, size=9)
-ws['J2'].alignment = Alignment(horizontal='right')
+ws['L2'] = '(単位：千円)'
+ws['L2'].font = Font(name=YGM, size=9)
+ws['L2'].alignment = Alignment(horizontal='right')
 
-MONTHS = ['2025年12月', '2026年1月', '2026年2月', '2026年3月', '2026年4月']
-# (表示名, 月次5か月の値, 累計, 前年同期比, 強調)
-PLROWS = [
- ('生体売上高',            [22574606, 33442487, 22793128, 19019717, 28992317], 126822255, 0.774, False),
- ('サービス売上高',        [4714428, 3832414, 4170949, 6225018, 4479559],      23422368, 1.086, False),
- ('物販売上高',            [14287821, 13883151, 10195384, 10657750, 11250432],  60274538, 0.838, False),
- ('売上高',                [41576855, 51158052, 37159461, 35902485, 44722308], 210519161, 0.818, True),
- ('売上原価',              [17900039, 14911696, 11806779, 12608688, 18701224],  75928426, 0.792, False),
- ('売上総利益',            [23676816, 36246356, 25352682, 23293797, 26021084], 134590735, 0.833, True),
- ('販売費及び一般管理費',  [25194150, 22818237, 24290231, 21642271, 23180593], 117125482, 0.838, True),
- ('　従業員給与',          [10067885, 9790228, 8675740, 8542407, 9024380],      46100640, 0.856, False),
- ('　役員報酬',            [900000, 900000, 900000, 900000, 900000],             4500000, 0.750, False),
- ('　法定福利費',          [-2239979, -1018412, 1800348, 898788, 1564034],       1004779, 5.565, False),
- ('　広告宣伝費',          [5535073, 1650296, 1652013, 1542200, 1639660],       12019242, 0.749, False),
- ('　ロイヤリティ',        [2404710, 2515078, 1953088, 1561732, 2085840],       10520448, 0.781, False),
- ('　地代家賃',            [3929660, 2859788, 2731198, 2774879, 2621325],       14916850, 0.953, False),
- ('　リース料',            [621786, 621786, 621786, 621786, 621786],             3108930, 1.073, False),
- ('　支払手数料',          [752211, 1224373, 1255746, 1023285, 732725],          4988340, 0.786, False),
- ('　接待交際費',          [528770, 226920, 620261, 637271, 450479],             2463701, 0.538, False),
- ('営業利益',              [-1517334, 13428119, 1062451, 1651526, 2840491],     17465253, 0.802, True),
- ('営業外収益',            [12704, 444664, 32026, 24636, 69738],                 583768, 1.642, False),
- ('営業外費用',            [235598, 251603, 245152, 339007, 281761],            1353121, 1.258, False),
- ('経常利益',              [-1740228, 13621180, 849325, 1337155, 2628468],      16695900, 0.793, True),
- ('特別損失（棚卸資産廃棄損）', [0, 0, 0, 44000000, 0],                          44000000, None, False),
- ('当期純利益',            [-1740228, 13621180, 848351, -42662857, 2628468],   -27305086, None, True),
-]
-hdr = ['科目'] + MONTHS + ['5か月累計', '前年同期比']
+hdr = ['科目'] + LP.MONTHS + ['7か月累計', '前年同期比']
 for i, h in enumerate(hdr):
     c = ws.cell(row=4, column=2 + i)
     c.value = h
@@ -604,7 +749,7 @@ for i, h in enumerate(hdr):
     c.alignment = Alignment(horizontal='center', vertical='center')
     c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
 r0 = 5
-for i, (label, vals, tot, yoy, emph) in enumerate(PLROWS):
+for i, (label, vals, tot, yoy, emph) in enumerate(LP.PL_MONTHLY):
     r = r0 + i
     ws.cell(row=r, column=2).value = label
     ws.cell(row=r, column=2).font = Font(name=YG, size=9, bold=emph)
@@ -613,25 +758,24 @@ for i, (label, vals, tot, yoy, emph) in enumerate(PLROWS):
         c.value = v if v else None
         c.number_format = '#,##0,;[Red]△ #,##0,;"－"'
         c.font = Font(name=ARIAL, size=9, bold=emph)
-    c = ws.cell(row=r, column=8)
+    c = ws.cell(row=r, column=10)
     c.value = tot
     c.number_format = '#,##0,;[Red]△ #,##0,;"－"'
     c.font = Font(name=ARIAL, size=9, bold=emph)
-    c = ws.cell(row=r, column=9)
+    c = ws.cell(row=r, column=11)
     c.value = yoy
     c.number_format = '0.0%;;"－"'
     c.font = Font(name=ARIAL, size=9, italic=True)
-    for col in range(2, 10):
+    for col in range(2, 12):
         ws.cell(row=r, column=col).border = BOX
         if emph:
             ws.cell(row=r, column=col).fill = PatternFill('solid', fgColor=PALE)
-rEnd = r0 + len(PLROWS)
+rEnd = r0 + len(LP.PL_MONTHLY)
 
-# 月末の主要B/S科目
 ws.cell(row=rEnd + 2, column=2).value = '【月末の主要B/S科目】'
 ws.cell(row=rEnd + 2, column=2).font = Font(name=YG, size=10, bold=True, color=NAVY)
 bh = rEnd + 3
-hdr2 = ['科目', '2025年11月末（決算）'] + [m + '末' for m in MONTHS]
+hdr2 = ['科目', '2025年11月末（決算）'] + [m + '末' for m in LP.MONTHS]
 for i, h in enumerate(hdr2):
     c = ws.cell(row=bh, column=2 + i)
     c.value = h
@@ -639,21 +783,7 @@ for i, h in enumerate(hdr2):
     c.fill = PatternFill('solid', fgColor=NAVY)
     c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
     c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-BSROWS = [
- ('現預金',        10140492, [9990901, 12439434, 14515681, 22167895, 24727601], False),
- ('売掛金',        27628072, [27267195, 31199518, 18780393, 18014838, 24301899], False),
- ('棚卸資産',     106167284, [106167284, 106167284, 106167284, 61939187, 61939187], False),
- ('有形固定資産',  54658019, [54658019, 54658019, 57133019, 57133019, 57133019], False),
- ('差入保証金',    27370600, [27346800, 27323000, 27299200, 25275400, 25251600], False),
- ('資産合計',     235385177, [231433689, 237695082, 229844776, 190610867, 199417594], True),
- ('買掛金',         9202412, [12352915, 9304332, 6279047, 7069055, 9650090], False),
- ('未払消費税等',  11784100, [11784100, 11447391, 10447391, 10447391, 8447391], False),
- ('長期借入金',   191858000, [191858000, 191858000, 191858000, 191858000, 191858000], False),
- ('役員借入金',     7565770, [5630657, 4788319, 3560039, 7417948, 13055242], False),
- ('負債合計',     249441992, [247230732, 239870945, 231172288, 234601236, 240779495], True),
- ('純資産合計',   -14056815, [-15797043, -2175863, -1327512, -43990369, -41361901], True),
-]
-for i, (label, base, vals, emph) in enumerate(BSROWS):
+for i, (label, base, vals, emph) in enumerate(LP.BS_MONTHLY):
     r = bh + 1 + i
     ws.cell(row=r, column=2).value = label
     ws.cell(row=r, column=2).font = Font(name=YG, size=9, bold=emph)
@@ -662,31 +792,31 @@ for i, (label, base, vals, emph) in enumerate(BSROWS):
         c.value = v
         c.number_format = '#,##0,;[Red]△ #,##0,;"－"'
         c.font = Font(name=ARIAL, size=9, bold=emph)
-    for col in range(2, 9):
+    for col in range(2, 11):
         ws.cell(row=r, column=col).border = BOX
         if emph:
             ws.cell(row=r, column=col).fill = PatternFill('solid', fgColor=PALE)
-note = ws.cell(row=bh + len(BSROWS) + 3, column=2)
+note = ws.cell(row=bh + len(LP.BS_MONTHLY) + 3, column=2)
 note.value = (
- '※出所：勘定科目残高推移表 2025年12月〜2026年4月（2026年6月26日付）。「2025年11月末（決算）」列のみ第5期決算報告書。\n'
+ '※出所：勘定科目残高推移表 2025年12月〜2026年6月（2026年9月18日出力）。「2025年11月末（決算）」列のみ第5期決算報告書。\n'
+ '※2026年6月26日出力の旧試算表（2026年4月まで）から、2026年1月〜4月の月次が一部修正されている（販管費・営業外費用・役員借入金等）。本シートは新試算表を正としている。\n'
  '※進行期の月次には減価償却費が計上されていない（販管費に「減価償却費」の科目が立っていない）。'
- '通期では2025年11月期並み（6,349千円）の償却負担が乗ると想定され、上表の営業利益はその分だけ過大（要確認）。\n'
+ '2025年11月期の通期実績は6,349千円であり、通期ではその分だけ営業利益が減少する見込み（要確認）。\n'
  '※法定福利費は2025年12月・2026年1月がマイナス計上となっており、年末調整・社会保険料の精算処理の影響と推察（仮説・要確認）。'
- '5か月累計1,005千円は2025年11月期の通期15,295千円に比して著しく低く、期中の未計上分が下期に乗る可能性がある。\n'
+ '7か月累計2,779千円は2025年11月期の通期15,295千円に比して低く、期中の未計上分が下期に乗る可能性がある。\n'
+ '※2026年5月の租税公課4,969千円は、自動車税・固定資産税等の年次課税と推察（仮説）。同月の営業損失の主因。\n'
  '※2026年3月に棚卸資産廃棄損44,000千円を計上（他勘定振替高△44,000千円）。'
- '2025年11月期末の「本社管理分32,000千円＋バックヤード管理分12,000千円」に相当すると推察（仮説・要確認）。\n'
- '※差入保証金は2026年3月に2,024千円減少しており、うち2,000千円は撤退店舗の敷金返還と推察（仮説・要確認）。\n'
- '※長期借入金は月次では期首残高のまま据え置かれており、返済額は決算時に一括計上されていると推察（要確認）。'
- '短期借入金（2026年4月末384千円）は月次で計上されている。')
+ '棚卸表の「本社32,000千円＋バックヤード12,000千円」に一致する（棚卸明細シート参照）。\n'
+ '※長期借入金は月次では期首残高のまま据え置かれており、返済額は決算時に一括計上されていると推察（要確認）。')
 note.font = Font(name=YGM, size=9)
 note.alignment = Alignment(vertical='top')
-for col, w in zip('BCDEFGHIJ', (26, 13, 13, 13, 13, 13, 13, 11, 4)):
+for col, w in zip('BCDEFGHIJKL', (26, 12, 12, 12, 12, 12, 12, 12, 13, 11, 4)):
     ws.column_dimensions[col].width = w
 ws.freeze_panes = 'C5'
 
 # ---------------------------------------------------------------- BSハイライト（進行期）
 ws = wb['BSハイライト']
-ws['H3'] = '進行期（2026年4月末TB）'
+ws['H3'] = '進行期（2026年6月末TB）'
 ws['H3'].font = Font(name=YG, size=10, bold=True, color=NAVY)
 prog_l = [('流動資産', None), ('現預金', 'G6'), ('売掛金', 'G7'), ('在庫', None),
           ('前払費用', 'G11'), ('未収入金', None), ('未収還付法人税等', None), ('仮払金', 'G14'),
@@ -710,7 +840,7 @@ for i, (lab, f) in enumerate(rows_f):
     ws.cell(row=12 + i, column=8).value = lab
     ws.cell(row=12 + i, column=9).value = f
 ws['H21'] = '資産合計'; ws['I21'] = "='BS(借方)'!G61"
-ws['K3'] = '進行期（2026年4月末TB）'
+ws['K3'] = '進行期（2026年6月末TB）'
 ws['K3'].font = Font(name=YG, size=10, bold=True, color=NAVY)
 ws['K4'] = '流動負債'; ws['L4'] = "='BS (貸方)'!G5"
 rows_d = [('買掛金', "='BS (貸方)'!G6"), ('短期借入金', "='BS (貸方)'!G7"),
@@ -742,7 +872,7 @@ for r in range(3, 22):
         ws.cell(row=r, column=col).number_format = '#,##0,;[Red]△ #,##0,;"－"'
 for col, w in zip('HIJKL', (17, 12, 1.2, 17, 12)):
     ws.column_dimensions[col].width = w
-ws['H23'] = '※進行期は2026年4月末の試算表ベース。決算整理（減価償却・棚卸評価等）は未了。'
+ws['H23'] = '※進行期は2026年6月末（7か月）の試算表ベース。決算整理（減価償却・棚卸評価等）は未了。'
 ws['H23'].font = Font(name=YGM, size=9)
 
 # ---------------------------------------------------------------- 仕上げ（数式エラーの解消）
@@ -760,19 +890,17 @@ for _name in ('SGA', 'CR', 'PL', 'PLハイライト', 'BSハイライト'):
 
 # 従業員シート：テンプレートの年齢・勤続年数の数式と日付書式を除去する
 _ws = wb['従業員']
-_last = 5 + len(emp)
+_last = 5 + len(LP.EMPLOYEES)
 for _r in range(5, 35):
     for _col in range(2, 18):
         _cell = _ws.cell(row=_r, column=_col)
-        if _r > _last or (isinstance(_cell.value, str) and _cell.value.startswith('=ROUNDDOWN')):
+        if (_r > _last and _r != _last + 2) or (isinstance(_cell.value, str)
+                                                and _cell.value.startswith('=ROUNDDOWN')):
             sset(_ws, _r, _col, None)
         if _col in (7, 8):
-            _cell.number_format = '0.0'
-        elif _col == 9:
-            _cell.number_format = '#,##0;;"－"'
-        elif _col == 6:
-            _cell.number_format = '0'
-_ws.cell(row=_last, column=6).number_format = '0'
+            _cell.number_format = '0.0;;"－"'
+        elif _col in (4, 5, 6):
+            _cell.number_format = '0;;"－"'
 
 wb.save(OUT)
 print('saved:', OUT)
