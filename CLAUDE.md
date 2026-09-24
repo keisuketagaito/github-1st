@@ -7,9 +7,14 @@ Valuation Report／会社分割スキーム資料／ヒアリング項目一覧�
 
 案件資料の作成・修正を依頼されたら、まず **`ma-deal-docs` スキル**を読むこと
 （`.claude/skills/ma-deal-docs/SKILL.md`）。全体ワークフロー、案件マスターのシート構成と
-転記先、概要書の標準ページ構成、評価手法、会社分割の扱い、PowerPoint編集の実務ガイドまで
-揃っている。スキルが自動で読み込まれない場合は Skill ツールで `ma-deal-docs` を明示的に
-呼ぶか、上記パスを直接読む。
+転記先、概要書の標準ページ構成、会社分割の扱い、PowerPoint編集の実務ガイドまで揃っている。
+
+**株式価値評価書（Valuation Report）を作る・直すときは、あわせて `ma-valuation` スキル**
+（`.claude/skills/ma-valuation/SKILL.md`）**を読むこと。** 評価基準日の決め方、修正BSの科目別
+評価方法、修正PLの調整項目、年買法・EV/EBITDAマルチプル法の算式、評価書23ページの構成、
+当社フォーマットのテンプレート（`assets/valuation_report_template.pptx`）が入っている。
+
+スキルが自動で読み込まれない場合は Skill ツールで明示的に呼ぶか、上記パスを直接読む。
 
 ## 絶対に外さない3点
 

@@ -269,7 +269,7 @@ SUM_ROWS = [
   '時価純資産 {} ＋ 営業権 {}〜{}（基準営業利益{}×1〜3倍）'.format(
       num(MV_NET), num(GW[0]), num(GW[2]), num(BASE_OP))),
  ('マーケットアプローチ\n（EV/EBITDAマルチプル法）', num(EV_EQ[0]), num(EV_EQ[2]),
-  'EV {}〜{}（基準EBITDA{}×3〜5倍）－ 非流動性ディスカウント30% ＋ ネットキャッシュ {}'.format(
+  'EV {}〜{}（基準EBITDA{}×3〜5倍）＋ ネットキャッシュ {}'.format(
       num(EV_VAL[0]), num(EV_VAL[2]), num(BASE_EB), num(NETCASH))),
  ('参考｜進行期の年換算ベース\n（コストアプローチ）', num(PR_LO), num(PR_HI),
   '撤退効果が通期で発現した場合の仮説試算。時価純資産 {} ＋ 営業権（年換算修正後営業利益{}×1〜3倍）※P.8参照'.format(
@@ -283,6 +283,20 @@ set_heights(t, [0.34, 0.62, 0.62, 0.62])
 set_widths(t, [2.45, 1.50, 1.50, 5.40])
 table_font(t, 9)
 align_cells(t, (1, 2), 'r', rows=range(1, len(SUM_ROWS)))
+# 試算の前提条件（当社フォーマットの定型ブロック）
+_pre = s.shapes.add_textbox(Inches(0.35), Inches(3.92), Inches(10.85), Inches(0.62))
+_pre.text_frame.word_wrap = True
+for _i, _ln in enumerate([
+ '【試算の前提条件】　評価対象：LUXAS株式会社　／　算定日：2026年9月23日　／　'
+ '基準日：2025年11月期（貸借対照表の基準日）　／　参照期間：2023年11月期〜2025年11月期（損益計算書の参照期間）',
+ '目的：対象会社の過半数の株式を第三者間で売買取引・M&Aする場合（「本件取引」といいます）の譲渡価額決定の'
+ '参考資料とすること（「本件試算目的」といいます）を目的に本株式価値試算報告書は作成されております。',
+]):
+    _pp = _pre.text_frame.paragraphs[0] if _i == 0 else _pre.text_frame.add_paragraph()
+    _pp.text = _ln
+    for _rr in _pp.runs:
+        _rr.font.size = Pt(8.5)
+        _rr.font.name = '游ゴシック Medium'
 set_text(s.shapes[6], '評価結果の読み方　―　株式価値は借入金の水準に規定されている')
 set_text(s.shapes[8], 'コストアプローチ（採用・主たる手法）')
 set_text(s.shapes[10], '時価純資産{}千円（うち評価差額{}千円）'.format(num(MV_NET), num(ADJ_NET)))
@@ -293,7 +307,7 @@ set_text(s.shapes[16], 'マーケットアプローチ（検証手法）')
 set_text(s.shapes[18], '基準EBITDA {}千円に対しEVは{}〜{}千円'.format(
     num(BASE_EB), num(EV_VAL[0]), num(EV_VAL[2])))
 set_text(s.shapes[20], 'ネットキャッシュ{}千円が株式価値を押し下げる'.format(num(NETCASH)))
-set_text(s.shapes[22], '非流動性ディスカウント30%の控除によりさらに低位に出る')
+set_text(s.shapes[22], '事業価値は確保できるが借入超過分を打ち消せない')
 set_text(s.shapes[24],
   'いずれの手法でも想定株式価値はマイナスであり、実務上は株式価値を備忘的な水準（ゼロ近傍）と置いたうえで、'
   '代表者の連帯保証（長期借入金{}千円）の解除と役員借入金{}千円の返済を譲渡条件の中心に据える整理が現実的である。'
@@ -809,8 +823,8 @@ s = S(59)
 set_text(s.shapes[0], 'EV/EBITDAマルチプル法による算出')
 sec(s, 1, 'Valuation Details')
 set_text(s.shapes[2],
-  '修正後EBITDAの加重平均による基準EBITDAは{}千円。事業価値（EV）から非流動性ディスカウント30%を控除し、'
-  'ネットキャッシュ{}千円を加算した想定株式価値は{}千円となる。'.format(
+  '修正後EBITDAの加重平均による基準EBITDAは{}千円。事業価値（EV）にネットキャッシュ{}千円を'
+  '加算した想定株式価値は{}千円となる。'.format(
       num(BASE_EB), num(NETCASH), rng(EV_EQ[0], EV_EQ[2])))
 t = s.shapes[3].table
 fit_cols(t, 5)
@@ -826,12 +840,11 @@ EVROWS = [
  ('', 'ネットキャッシュ', '', '', num(NETCASH)),
  ('③ 想定株式価値', 'マルチプル倍率', '3.0倍', '4.0倍', '5.0倍'),
  ('', '事業価値EV（①×倍率）', num(EV_VAL[0]), num(EV_VAL[1]), num(EV_VAL[2])),
- ('', '非流動性ディスカウント（△30%）', num(EV_DISC[0]), num(EV_DISC[1]), num(EV_DISC[2])),
  ('', 'ネットキャッシュ（②）', num(NETCASH), num(NETCASH), num(NETCASH)),
  ('', '想定株式価値', num(EV_EQ[0]), num(EV_EQ[1]), num(EV_EQ[2])),
 ]
 fit_rows(t, len(EVROWS), 2)
-restyle_rows(t, {3: 2, 5: 2, 8: 2, len(EVROWS) - 1: 2})
+restyle_rows(t, {3: 2, 5: 2, 8: 2, len(EVROWS) - 1: 2})  # 修正後EBITDA・基準EBITDA・ネットキャッシュ・想定株式価値
 for i, row in enumerate(EVROWS):
     fill_row(t, i, row)
 place(s.shapes[3], top=1.90, width=9.60)
@@ -844,7 +857,7 @@ _nt = s.shapes.add_textbox(Inches(0.37), Inches(7.10), Inches(10.83), Inches(0.6
 _nt.text_frame.word_wrap = True
 for i, line in enumerate([
  '※修正後EBITDA＝修正後営業利益＋減価償却費であり、企業概要書の調整後EBITDAと同一である。※単位：千円。',
- '※非流動性ディスカウント30%は、上場会社の株価倍率に織り込まれた市場性（流動性）を非上場株式へ適用するにあたり控除するもの。コストアプローチには適用しない。',
+ '※想定株式価値＝事業価値EV＋ネットキャッシュ。当社フォーマットでは非流動性ディスカウントを適用していない。',
  '※類似上場会社の選定にあたっては、ペット関連小売・生体販売を主要事業とする国内上場会社を想定しているが、'
  '同社は債務超過かつ売上規模が大きく異なるため、倍率レンジ3〜5倍は保守的に設定している（要確認）。',
 ]):

@@ -36,7 +36,9 @@ description: >
 
 ### Step 2. 評価パート（VR→ セクション）の作成
 
-時価純資産と正常収益力を算定する。詳細な手順・調整の考え方・数式は `references/valuation.md` を読むこと。
+時価純資産と正常収益力を算定する。**評価書を作る・直すときは専用スキル `ma-valuation` を読むこと**
+（`.claude/skills/ma-valuation/SKILL.md`）。科目別の評価方法、調整項目、算式、評価書23ページの構成、
+当社フォーマットのテンプレートまで揃っている。マスター側の要点だけなら `references/valuation.md`。
 
 大まかには、修正BSで資産負債を時価評価し、修正PL/修正SGAで正常収益力を算定し、年買法（コストアプローチ）とEV/EBITDAマルチプル法（マーケットアプローチ）で株式価値レンジを出す。
 
@@ -127,7 +129,7 @@ print('変更スライド:', diff)
 |---|---|
 | `references/master-sheets.md` | 案件マスターへ転記するとき／どのシートがどのページの原本かを知りたいとき |
 | `references/im-structure.md` | 概要書のページを作る・直すとき |
-| `references/valuation.md` | 評価書を作るとき／修正BS・修正PL・株価算定をするとき |
+| `references/valuation.md` | 案件マスターの評価シートを触るとき（評価書そのものは `ma-valuation` スキル） |
 | `references/company-split.md` | 会社分割・非事業用資産の切出しがある案件のとき |
 | `references/hearing-list.md` | ヒアリング項目一覧を作るとき |
 | `references/pptx-ops.md` | パワポのスライド追加・削除・表の行数変更・図形描画をするとき |
