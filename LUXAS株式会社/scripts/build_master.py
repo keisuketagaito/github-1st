@@ -1357,5 +1357,95 @@ _ws['B8'] = '支払予定賞与'
 for _a in ('B3', 'B8'):
     _ws[_a].font = Font(name=YG, size=9, bold=True)
 
+# ---- 従業員一覧（個人別）--------------------------------------------------
+# テンプレート標準の並び（№／氏名／イニシャル／雇用形態／性別／年齢／入社年月日／
+# 勤続年数／部署／役職／…／備考）に合わせ、在籍49名を1人1行で記載する。
+import emp_list as EL
+ws = wb['従業員']
+_last_used = 5 + len(LP.EMPLOYEES) + 4
+for _r in range(2, max(_last_used, 40) + 1):          # 既存の集約表を一旦消す
+    for _c in range(2, 18):
+        sset(ws, _r, _c, None)
+EMP_HDR = ('№', 'イニシャル', '雇用形態', '性別', '年齢\n（歳）', '勤続年数',
+           '部署・店舗', '役職', '備考')
+_thin2 = Side(style='thin', color='BFBFBF')
+for _i, _h in enumerate(EMP_HDR):
+    _c = ws.cell(row=4, column=2 + _i)
+    _c.value = _h
+    _c.font = Font(name=YG, size=9, bold=True, color='FFFFFF')
+    _c.fill = PatternFill('solid', fgColor='0B3041')
+    _c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+ROLE = {1: '代表取締役', 2: '現場責任者'}
+NOTE = {1: '経理全般・金融機関対応', 2: '経営業務・人材育成・店舗管理。緑店・大垣管理センターの動物取扱責任者を兼務'}
+for _i, (_no, _ini, _typ, _sex, _age, _yrs, _dept) in enumerate(EL.EMP_LIST):
+    _r = 5 + _i
+    for _c, _v in enumerate((_no, _ini, _typ, _sex, _age, _yrs, _dept,
+                             ROLE.get(_no, '－'), NOTE.get(_no, '－')), start=2):
+        _cell = ws.cell(row=_r, column=_c)
+        _cell.value = _v
+        _cell.font = Font(name=ARIAL if _c in (2, 6) else (YGM if _c == 10 else YG), size=9)
+        _cell.border = Border(bottom=_thin2)
+        _cell.alignment = Alignment(
+            horizontal='center' if _c in (2, 4, 5, 6, 7) else 'left', vertical='center')
+_end = 5 + len(EL.EMP_LIST)
+ws.cell(row=_end, column=2).value = '合計'
+ws.cell(row=_end, column=3).value = '{}名'.format(len(EL.EMP_LIST))
+for _c in (2, 3):
+    ws.cell(row=_end, column=_c).font = Font(name=YG, size=9, bold=True)
+ws.cell(row=_end + 2, column=2).value = (
+ '※出所：対象会社提供「従業員名簿（全従業員195名）」。退職年月日の入力がない49名を在籍者として集計。\n'
+ '※イニシャルは役員2名のみ実名、その他は氏名フリガナの頭文字で匿名化している。'
+ '氏名・生年月日・住所を含む個票を受領済であり、買手候補への開示は本ページの匿名化後の内容による。\n'
+ '※年齢・勤続年数は2026年9月23日時点。役員2名は入社日の登録がないため勤続年数の集計対象外。\n'
+ '※事業所単位の動物取扱責任者の配置状況は「部署・店舗別の集計」ブロックおよび概要書P.22に記載している。\n'
+ '※役職は代表取締役・現場責任者以外に登録がない（要確認）。給与情報は本ページには記載していない。')
+ws.cell(row=_end + 2, column=2).font = Font(name=YGM, size=9)
+for _col, _w in zip('BCDEFGHIJ', (5, 11, 11, 6, 6, 11, 30, 13, 52)):
+    ws.column_dimensions[_col].width = _w
+
+# 部署別の集計ブロック（概要書「従業員構成」ページの原本）
+_agg = _end + 10
+ws.cell(row=_agg - 1, column=2).value = '【部署・店舗別の集計】'
+ws.cell(row=_agg - 1, column=2).font = Font(name=YG, size=10, bold=True, color='0B3041')
+for _i, _h in enumerate(('部署・店舗', '正社員等（名）', 'アルバイト（名）', '合計（名）',
+                         '平均年齢（歳）', '平均勤続年数（年）')):
+    _c = ws.cell(row=_agg, column=2 + _i)
+    _c.value = _h
+    _c.font = Font(name=YG, size=9, bold=True, color='FFFFFF')
+    _c.fill = PatternFill('solid', fgColor='0B3041')
+    _c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+def _yr(v):
+    import re as _re
+    m = _re.match(r'(\d+)年(\d+)か月', str(v) or '')
+    return int(m.group(1)) + int(m.group(2)) / 12 if m else None
+_depts = []
+for _e in EL.EMP_LIST:
+    if _e[6] not in _depts:
+        _depts.append(_e[6])
+for _i, _d in enumerate(_depts):
+    _mem = [e for e in EL.EMP_LIST if e[6] == _d]
+    _reg = sum(1 for e in _mem if e[2] in ('役員', '正社員'))
+    _prt = sum(1 for e in _mem if e[2] == 'アルバイト')
+    _ages = [int(e[4]) for e in _mem if str(e[4]).isdigit()]
+    _yrs = [y for y in (_yr(e[5]) for e in _mem) if y is not None]
+    _r = _agg + 1 + _i
+    for _c, _v in enumerate((_d, _reg, _prt, _reg + _prt,
+                             round(sum(_ages) / len(_ages), 1) if _ages else None,
+                             round(sum(_yrs) / len(_yrs), 1) if _yrs else None), start=2):
+        _cell = ws.cell(row=_r, column=_c)
+        _cell.value = _v
+        _cell.font = Font(name=YG if _c == 2 else ARIAL, size=9)
+        _cell.border = Border(bottom=_thin2)
+        if _c in (5, 6, 7):
+            _cell.number_format = '0.0;;"－"'
+        elif _c in (3, 4):
+            _cell.number_format = '0;;"－"'
+_r = _agg + 1 + len(_depts)
+ws.cell(row=_r, column=2).value = '合計'
+for _c, _f in ((3, 'C'), (4, 'D'), (5, 'E')):
+    ws.cell(row=_r, column=_c).value = '=SUM({0}{1}:{0}{2})'.format(_f, _agg + 1, _r - 1)
+    ws.cell(row=_r, column=_c).font = Font(name=ARIAL, size=9, bold=True)
+ws.cell(row=_r, column=2).font = Font(name=YG, size=9, bold=True)
+
 wb.save(OUT)
 print('saved:', OUT)

@@ -324,7 +324,7 @@ table_font(t, 8)
 align_cells(t, (1, 2, 5, 6), 'r', rows=range(2, 19))
 set_lines(s.shapes[5], [
  ('head', '≪棚卸資産≫'),
- '・2025年11月期末106,167千円（総資産の45%）。内訳は店舗8店52,017千円、本社32,000千円、バックヤード12,000千円、外部保管在庫10,000千円、貯蔵品150千円（P.29参照）。',
+ '・2025年11月期末106,167千円（総資産の45%）。内訳は店舗8店52,017千円、本社32,000千円、バックヤード12,000千円、外部保管在庫10,000千円、貯蔵品150千円（P.31参照）。',
  '・2026年3月に本社分＋バックヤード分の44,000千円を全額廃棄損として計上し、2026年6月末は58,596千円まで減少。',
  ('head', '≪売掛金≫'),
  '・2025年11月期末27,628千円の内訳は㈲ワンラブ（FC本部）17,373千円、カード・PayPay等の決済会社10,255千円。滞留債権は認められない。',
@@ -395,7 +395,7 @@ for i, line in enumerate([
  '（単位：千円）※出所：勘定科目残高推移表 2025年12月〜2026年6月（2026年9月18日出力）。「参考」列は第5期決算報告書。',
  '※進行期の月次には減価償却費が計上されていない（2025年11月期の通期実績は6,349千円）。通期ではその分だけ営業利益が減少する見込み（要確認）。',
  '※法定福利費は2025年12月・2026年1月がマイナス計上であり、年末調整・社会保険料の精算処理の影響と推察（仮説）。7か月累計2,779千円は通期実績15,295千円に比して低く、期中未計上分が下期に乗る可能性がある。',
- '※2026年5月の租税公課4,969千円は自動車税・固定資産税等の年次課税と推察（仮説）。同月の営業損失の主因。※2026年3月の特別損失44,000千円は棚卸資産廃棄損（P.29参照）。',
+ '※2026年5月の租税公課4,969千円は自動車税・固定資産税等の年次課税と推察（仮説）。同月の営業損失の主因。※2026年3月の特別損失44,000千円は棚卸資産廃棄損（P.31参照）。',
 ]):
     pp = note.text_frame.paragraphs[0] if i == 0 else note.text_frame.add_paragraph()
     pp.text = line
@@ -743,6 +743,66 @@ set_lines(s.shapes[9], [
  '※図中の各ブロックはP.22「従業員構成」の',
  '　部署・店舗と対応している',
 ])
+
+def pad_col2(table, col, left=0.07):
+    for r in range(len(table.rows)):
+        table.cell(r, col).margin_left = Inches(left)
+
+# ============================================================ 従業員一覧（新規2ページ）
+# 案件マスター「従業員」シートの個人別一覧をそのまま転記する。
+EMPW = mb['従業員']
+EMP_ROWS = []
+for _r in range(5, 200):
+    _no = EMPW.cell(row=_r, column=2).value
+    if _no in (None, '', '合計'):
+        break
+    EMP_ROWS.append(tuple(EMPW.cell(row=_r, column=_c).value for _c in range(2, 11)))
+EMP_HDR = ('№', 'イニシャル', '雇用形態', '性別', '年齢\n（歳）', '勤続年数',
+           '部署・店舗', '役職', '備考')
+EMP_PAGES = []
+_CHUNK = 25
+for _pi in range(0, len(EMP_ROWS), _CHUNK):
+    _chunk = EMP_ROWS[_pi:_pi + _CHUNK]
+    _sl = dup_slide(prs, 23)
+    set_text(_sl.shapes[0], '従業員一覧{}'.format('①' if _pi == 0 else '②'))
+    sec(_sl, 1, '組織、拠点、設備等')
+    if _pi == 0:
+        set_text(_sl.shapes[2],
+          '在籍49名（役員2名、正社員14名、アルバイト33名）の個人別一覧。'
+          '氏名は役員2名を除きイニシャルへ匿名化している。部署・店舗別の集計はP.22を参照。')
+    else:
+        set_text(_sl.shapes[2],
+          '前ページの続き。大型犬専門2店舗（岐阜総本店・大阪総本店）に18名、'
+          '稼働6店舗全体で45名が配置されている。撤退2店舗および大垣管理センターの在籍者はいない。')
+    _t = _sl.shapes[3].table
+    fit_cols(_t, len(EMP_HDR))
+    _body = [tuple('' for _ in range(len(EMP_HDR))), EMP_HDR]
+    for _e in _chunk:
+        _body.append(tuple('' if _v is None else str(_v) for _v in _e))
+    fit_rows(_t, len(_body), 3)
+    for _i, _row in enumerate(_body):
+        fill_row(_t, _i, _row)
+    del_rows(_t, range(len(_body), len(trs(_t))))
+    place(_sl.shapes[3], top=1.52, width=10.98)
+    set_heights(_t, [0.14, 0.42] + [0.205] * len(_chunk))
+    set_widths(_t, [0.38, 0.95, 0.95, 0.50, 0.56, 0.95, 2.80, 1.14, 2.75])
+    table_font(_t, 8.5)
+    align_cells(_t, (0, 2, 3, 4, 5), 'c', rows=range(2, len(_body)))
+    align_cells(_t, (1, 6, 7, 8), 'l', rows=range(2, len(_body)))
+    pad_col2(_t, 6); pad_col2(_t, 8)
+    EMP_PAGES.append(len(prs.slides.__iter__.__self__._sldIdLst))
+_note = prs.slides[EMP_PAGES[-1] - 1].shapes.add_textbox(
+    Inches(0.34), Inches(7.10), Inches(10.98), Inches(0.50))
+_note.text_frame.word_wrap = True
+for _i, _line in enumerate([
+ '※出所：対象会社提供「従業員名簿（全従業員195名）」。退職年月日の入力がない49名を在籍者として集計。年齢・勤続年数は2026年9月23日時点。',
+ '※役員2名は入社日の登録がないため勤続年数の集計対象外。役職は代表取締役・現場責任者以外に登録がない（要確認）。個人別の給与情報は本ページには記載していない。',
+]):
+    _pp = _note.text_frame.paragraphs[0] if _i == 0 else _note.text_frame.add_paragraph()
+    _pp.text = _line
+    for _rr in _pp.runs:
+        _rr.font.size = Pt(8)
+        _rr.font.name = '游ゴシック Medium'
 
 # ============================================================ 31. 株主及び役員
 s = S(31)
@@ -1366,7 +1426,7 @@ for i, line in enumerate([
 KEEP = [1, 2, 3,
         4, 5, 7, 8, 38, 9,
         10, 11, 14, 39, 15, 13, 16, 25, 19,
-        20, 21, 31, 23, 24, 27, 29, 53,
+        20, 21, 31, 23, EMP_PAGES[0], EMP_PAGES[1], 24, 27, 29, 53,
         54, 55, 40, 56, 57, 30,
         58, 59, 60, 61, 62, 63]
 prune_and_order(prs, KEEP)

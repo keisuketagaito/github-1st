@@ -271,6 +271,22 @@ def place(shape, left=None, top=None, width=None, height=None):
     if height is not None: shape.height = Inches(height)
 
 # ---------------------------------------------------------------- スライド
+def dup_slide(prs, idx):
+    """idx 番目（1始まり）のスライドを複製し、末尾に追加して新しいスライドを返す。
+       画像・グラフを持たないスライド（レイアウト関係のみ）を前提とする。"""
+    import copy as _copy
+    src = prs.slides[idx - 1]
+    new = prs.slides.add_slide(src.slide_layout)
+    for shp in list(new.shapes):                 # レイアウト由来のプレースホルダーを一旦消す
+        shp._element.getparent().remove(shp._element)
+    for shp in src.shapes:
+        new.shapes._spTree.append(_copy.deepcopy(shp._element))
+    for rel in src.part.rels.values():           # レイアウト以外の関係を引き継ぐ
+        if 'slideLayout' in rel.reltype or 'notesSlide' in rel.reltype:
+            continue
+        new.part.rels.add_relationship(rel.reltype, rel._target, rel.rId, rel.is_external)
+    return new
+
 def prune_and_order(prs, keep):
     """keep（1始まりの元スライド番号のリスト）だけを残し、その順に並べ替える。"""
     lst = prs.slides._sldIdLst
