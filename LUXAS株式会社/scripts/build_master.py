@@ -1195,5 +1195,167 @@ vs['C4'].font = Font(name=YGM, size=9)
 for _col, _w in zip('BCD', (32, 14, 80)):
     vs.column_dimensions[_col].width = _w
 
+# ---- 評価明細シートの整備 --------------------------------------------------
+# テンプレートのダミー値（トヨタ株・日本生命・田中太郎 等）が残っていると、
+# マスターを開いた人が対象会社に当該資産があると誤読する。使わない科目は
+# ダミーを消し「該当なし」と理由を残す（スキル ma-valuation の方針）。
+
+def _wipe(ws, r0, r1, c0, c1):
+    """データ行のみを消す（ヘッダー行は残す）"""
+    for r in range(r0, r1 + 1):
+        for c in range(c0, c1 + 1):
+            sset(ws, r, c, None)
+
+def _note(ws, addr, text):
+    ws[addr] = text
+    ws[addr].font = Font(name=YGM, size=9)
+    ws[addr].alignment = Alignment(wrap_text=False, vertical='top')
+
+# 売掛金：滞留・回収不能なし／棚卸資産：実際の評価減を記載
+ws = wb['売掛・棚卸']
+_wipe(ws, 4, 8, 2, 6)
+ws['B4'] = '該当なし'
+ws['F4'] = ('2025年11月期末の売掛金27,628千円の内訳は㈲ワンラブ（FC本部）17,373千円、'
+            'カード・PayPay等の決済会社10,255千円。いずれも翌月回収であり滞留債権は認められないため簿価評価とした。')
+_wipe(ws, 14, 18, 2, 6)
+INV_ADJ = [
+    ('本社（バックヤード含む）', 44000000, -44000000,
+     '2026年3月に本社分32,000千円・バックヤード分12,000千円を全額廃棄。基準日時点で既に滞留・陳腐化していたと判断し全額評価減'),
+    ('外部保管在庫', 10000000, 0,
+     '実在性が未確認のため簿価評価（要確認）。実在しない場合は追加で10,000千円の評価減となる'),
+    ('店舗在庫（稼働6店舗＋撤退2店舗）', 52017284, 0,
+     '棚卸表により拠点別残高を確認。滞留・陳腐化は認められないため簿価評価'),
+]
+for _i, (_nm, _bk, _dv, _rs) in enumerate(INV_ADJ):
+    _r = 14 + _i
+    ws.cell(row=_r, column=2).value = _nm
+    ws.cell(row=_r, column=3).value = _bk
+    ws.cell(row=_r, column=4).value = _dv or None
+    ws.cell(row=_r, column=5).value = _bk + _dv
+    ws.cell(row=_r, column=6).value = _rs
+    for _c in range(2, 7):
+        _cell = ws.cell(row=_r, column=_c)
+        _cell.font = Font(name=ARIAL if _c in (3, 4, 5) else YGM, size=9)
+        if _c in (3, 4, 5):
+            _cell.number_format = '#,##0,;[Red]△ #,##0,;"－"'
+ws['B17'] = '合計'
+ws['C17'] = '=SUM(C14:C16)'
+ws['D17'] = '=SUM(D14:D16)'
+ws['E17'] = '=SUM(E14:E16)'
+for _a in ('B17', 'C17', 'D17', 'E17'):
+    ws[_a].font = Font(name=ARIAL if _a[0] != 'B' else YG, size=9, bold=True)
+    if _a[0] != 'B':
+        ws[_a].number_format = '#,##0,;[Red]△ #,##0,;"－"'
+
+# 以下は該当なし／未評価。ダミーを消して理由を残す
+for _nm, _r0, _r1, _c1, _addr, _txt in (
+    ('減価償却', 4, 8, 6, 'B4',
+     '該当なし：減価償却内訳明細書により第5期は適正償却を確認しており、償却不足は認められない。'),
+    ('保険', 4, 8, 6, 'B4',
+     '該当なし：保険積立金の計上はない（2025年11月期末残高ゼロ）。'),
+    ('有価証券', 4, 9, 7, 'B4',
+     '該当なし：有価証券・投資有価証券の保有はない（2025年11月期末残高ゼロ）。'),
+    ('未払人件費・賞与', 4, 9, 7, 'B4',
+     '未評価：賃金台帳では当月締・翌月25日払であり、11月分給与が未払費用20,114千円に含まれているか要確認。'
+     '未計上であれば社会保険料概算15%を含め約10,000千円超の追加計上が必要。賞与制度の有無も未確認のため引当計上していない。'),
+    ('退職金', 4, 10, 10, 'C4',
+     '未評価：従業員退職金規程・役員退職慰労金規程がいずれも未受領のため、要支給額を算定できず引当計上していない（要確認）。'),
+    ('参照企業', 4, 15, 5, 'B4',
+     '未選定：ペット関連小売・生体販売を主要事業とする国内上場会社を想定したが、対象会社は債務超過かつ売上規模が'
+     '大きく異なるため個社の倍率をそのまま適用できない。EV/EBITDA倍率は中小企業M&Aの一般的レンジ3〜5倍を保守的に適用した。'),
+):
+    _ws = wb[_nm]
+    _wipe(_ws, _r0, _r1, 2, _c1)
+    _note(_ws, _addr, _txt)
+
+# 土地：駐車場用地1筆のみ。路線価資料が未受領のため簿価評価
+ws = wb['土地']
+_wipe(ws, 4, 8, 2, 7)
+ws['B4'] = '駐車場用地／岐阜県大垣市南若森町字柳原227番3'
+ws['C4'] = 89.4
+ws['D4'] = 2974400
+ws['F4'] = 2974400
+ws['G4'] = '路線価図・固定資産税評価証明が未受領のため簿価評価（要確認）。簿価は33千円/㎡であり大幅な含み損益は生じにくいと推察'
+ws['B8'] = '合計'
+ws['C8'] = '=C4'
+ws['D8'] = '=D4'
+ws['E8'] = '=SUM(E4:E7)'
+ws['F8'] = '=F4'
+for _r in (4, 8):
+    for _c in range(2, 8):
+        _cell = ws.cell(row=_r, column=_c)
+        _cell.font = Font(name=ARIAL if _c in (3, 4, 5, 6) else YGM, size=9, bold=(_r == 8))
+        if _c in (4, 5, 6):
+            _cell.number_format = '#,##0,;[Red]△ #,##0,;"－"'
+
+# 税効果：繰延税金資産を認識しない旨を明記
+ws = wb['税効果']
+_wipe(ws, 4, 18, 2, 6)
+TAX_ROWS = [
+    ('棚卸資産', '×', -44000000, '繰越欠損金を有し課税所得の見込みが立たないため回収可能性を認めず、繰延税金資産を計上しない'),
+    ('営業権', '×', -1500004, '同上。またB/S計上の営業権は年買法での二重計上を避けるための評価減であり税務上の影響はない'),
+    ('仮払金', '×', -1650000, '同上'),
+]
+for _i, (_nm, _ok, _amt, _rs) in enumerate(TAX_ROWS):
+    _r = 4 + _i
+    ws.cell(row=_r, column=2).value = _nm
+    ws.cell(row=_r, column=3).value = _ok
+    ws.cell(row=_r, column=4).value = _amt
+    ws.cell(row=_r, column=5).value = '－'
+    ws.cell(row=_r, column=6).value = _rs
+    for _c in range(2, 7):
+        _cell = ws.cell(row=_r, column=_c)
+        _cell.font = Font(name=ARIAL if _c in (4, 5) else YGM, size=9)
+        if _c == 4:
+            _cell.number_format = '#,##0,;[Red]△ #,##0,;"－"'
+_note(ws, 'B9',
+      '※実効税率34%。評価差額合計△47,150千円に対する繰延税金資産16,031千円は、'
+      '回収可能性が認められないため認識していない（保守的な取扱い）。課税所得の見通しが立つ場合は同額だけ時価純資産が上振れする。')
+
+# CR・修正CR：製造業ではないため使用しない
+for _nm in ('CR', '修正CR'):
+    _ws = wb[_nm]
+    _ws['B2'] = '※対象会社は小売業であり製造原価報告書は作成されていないため、本シートは使用しない。'
+    _ws['B2'].font = Font(name=YGM, size=10, bold=True, color='C00000')
+
+# テンプレートの作図用ダミーを消す
+_ws = wb['表']
+_wipe(_ws, 1, 36, 1, 6)
+_ws['B2'] = '※作図用の予備シート（本案件では未使用）'
+_ws['B2'].font = Font(name=YGM, size=9)
+_ws = wb['スケジュール(縦)']
+_wipe(_ws, 4, 337, 2, 6)
+_ws['B2'] = '※本案件ではスケジュール(横)を使用。本シートは未使用。'
+_ws['B2'].font = Font(name=YGM, size=9)
+
+# ---- テンプレート残骸の除去（設備・スケジュール・グラフ）--------------------
+ws = wb['設備']
+for _c in (2, 4, 5, 6, 7, 8, 11):          # 合計行に残ったダミー（あああ／XXXXX）
+    sset(ws, 20, _c, None)
+ws['C20'] = '合計'
+ws['C20'].font = Font(name=YG, size=9, bold=True)
+for _c in range(2, 12):                     # 21行目は丸ごとダミー
+    sset(ws, 21, _c, None)
+for _c in (3, 9, 10):                       # 22行目の「車両及び運搬具合計」は範囲が壊れた残骸
+    sset(ws, 22, _c, None)
+
+_ws = wb['スケジュール(縦)']
+for _c in range(2, 7):
+    sset(_ws, 3, _c, None)
+_ws = wb['スケジュール(横)']
+for _row in _ws.iter_rows():
+    for _c in _row:
+        if isinstance(_c.value, str) and _c.value.strip() == '●':
+            _c.value = None
+_ws = wb['グラフ']
+_ws['A1'] = '※テンプレートの作図用サンプルデータ。本案件では未使用。'
+_ws['A1'].font = Font(name=YGM, size=9, color='C00000')
+
+_ws = wb['未払人件費・賞与']
+_ws['B3'] = '支払給与'
+_ws['B8'] = '支払予定賞与'
+for _a in ('B3', 'B8'):
+    _ws[_a].font = Font(name=YG, size=9, bold=True)
+
 wb.save(OUT)
 print('saved:', OUT)
