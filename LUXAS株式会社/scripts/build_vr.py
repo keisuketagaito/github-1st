@@ -125,6 +125,47 @@ def header_row(table, r, pt=8.5):
                 run.font.size = Pt(pt)
                 run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
 
+def ink(table, rows, cols=None, rgb=(0x00, 0x00, 0x00)):
+    """文字色を明示する。テンプレートの空欄セルが白文字のまま残り、
+       値を入れても見えなくなる事故を防ぐ。"""
+    from pptx.dml.color import RGBColor
+    cc = cols if cols is not None else range(len(table.columns))
+    for r in rows:
+        for c in cc:
+            for para in table.cell(r, c).text_frame.paragraphs:
+                for run in para.runs:
+                    run.font.color.rgb = RGBColor(*rgb)
+
+def _fill_rgb(cell):
+    try:
+        return cell.fill.fore_color.rgb if cell.fill.type == 1 else None
+    except Exception:
+        return None
+
+def clear_fill(table, rows, only=((0xFF, 0xFF, 0x00),)):
+    """テンプレート由来の強調（黄色）塗りつぶしを外し、素のデータ行と同じ塗りに戻す。
+       単に background() にすると、科目列だけ薄グレーという表の地色が抜けて縞になる。"""
+    from pptx.dml.color import RGBColor
+    tgt = {RGBColor(*o) for o in only}
+    rows = list(rows)
+    ncol = len(table.columns)
+    ref = None
+    for r in rows:                                   # 黄色でない行を地色の基準にする
+        if all(_fill_rgb(table.cell(r, c)) not in tgt for c in range(ncol)):
+            ref = [_fill_rgb(table.cell(r, c)) for c in range(ncol)]
+            break
+    for r in rows:
+        for c in range(ncol):
+            cell = table.cell(r, c)
+            if _fill_rgb(cell) not in tgt:
+                continue
+            base = ref[c] if ref else None
+            if base is None:
+                cell.fill.background()
+            else:
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = base
+
 def bold_rows(table, rows, on=True):
     """指定行の文字を太字にする（小計・合計行の強調用）。"""
     for r in rows:
@@ -179,6 +220,12 @@ set_lines(s.shapes[5], [
  '本書の存在及び記載されている情報並びに本書に関する全ての連絡・協議は、'
  '貴社と弊社間で締結している秘密保持契約書に定めのある秘密情報に該当致します。',
 ])
+set_text(s.shapes[6].shapes[1],
+  '本書で用いられる「本件取引」「本件試算目的」の定義は、「株式価値の試算結果」のページ（P.7）に記載しております。')
+_mail = s.shapes[1].table.cell(1, 3)
+for _p in _mail.text_frame.paragraphs:
+    for _r in _p.runs:
+        _r.font.size = Pt(9)
 
 # ============================================================ 4. 目次（Appendixなし）
 s = S(4)
@@ -257,6 +304,8 @@ def bs_table(t, rows, emph, sheet, head='資産の部'):
     align_cells(t, (0,), 'l', rows=range(2, len(body)))
     header_row(t, 1, 8)
     pad_col(t, 0, left=0.08)
+    clear_fill(t, range(2, len(body)))
+    ink(t, range(2, len(body)))
     bold_rows(t, [i + 2 for i, lab in enumerate(rows) if lab in emph])
     return body
 
@@ -299,6 +348,8 @@ VKB = [(str(i + 1), nm, num(bk), num(dv), num(av), note)
 VKT = [('', '評価差額 合計', '－', num(ADJ_NET), '－', '')]
 ALLV = VKH + VKB + VKT
 fit_rows(t, len(ALLV), 2)
+restyle_rows(t, {i: 2 for i in range(1, len(ALLV))})
+unmerge_v(t)
 for i, row in enumerate(ALLV):
     fill_row(t, i, row)
 place(s.shapes[3], top=1.35, width=10.95)
@@ -311,6 +362,7 @@ align_cells(t, (2, 3, 4), 'r', rows=range(1, len(ALLV)))
 header_row(t, 0, 8)
 pad_col(t, 1)
 pad_col(t, 5, left=0.10)
+ink(t, range(1, len(ALLV)))
 bold_rows(t, [len(ALLV) - 1])
 
 # ============================================================ 12/14. 修正BS
@@ -332,6 +384,8 @@ def adj_table(t, rows, emph, ws, head):
     align_cells(t, (1, 2, 3), 'r', rows=range(3, len(body)))
     header_row(t, 2, 8)
     pad_col(t, 0, left=0.08)
+    clear_fill(t, range(3, len(body)))
+    ink(t, range(3, len(body)))
     bold_rows(t, [i + 3 for i, r in enumerate(rows) if r in emph])
     return body
 
@@ -398,14 +452,16 @@ fill_row(t, 1, ('キャッシュライクアイテム', '金額', '', 'デット
 for i in range(3):
     l = NCL[i] if i < len(NCL) else ('', None)
     d = NCD[i] if i < len(NCD) else ('', None)
-    fill_row(t, i + 2, (l[0] or '　', num(l[1]) if l[1] is not None else '　', '　',
-                        d[0] or '　', num(d[1]) if d[1] is not None else '　'))
+    fill_row(t, i + 2, (l[0] or '－', num(l[1]) if l[1] is not None else '－', '　',
+                        d[0] or '－', num(d[1]) if d[1] is not None else '－'))
 fill_row(t, 5, ('合計', num(CASHLIKE), '　', '合計', num(DEBTLIKE)))
 fill_row(t, 6, ('　', '　', '　', '　', '　'))
 fill_row(t, 7, ('ネットキャッシュ', num(NETCASH), '　', '　', '　'))
 set_widths(t, [2.85, 1.55, 0.35, 4.65, 1.55])
 table_font(t, 9)
 align_cells(t, (1, 4), 'r', rows=range(2, 8))
+clear_fill(t, range(2, 8))
+ink(t, range(2, 8))
 bold_rows(t, [5, 7])
 _nt = s.shapes.add_textbox(Inches(0.37), Inches(4.60), Inches(10.95), Inches(0.80))
 _nt.text_frame.word_wrap = True
@@ -429,7 +485,7 @@ PLROWS = [(5, '生体売上高'), (6, 'サービス売上高'), (7, '物販売�
           (17, '売上原価'), (18, '売上総利益'), (19, '販売費及び一般管理費'), (20, '営業利益'),
           (21, '営業外収益'), (22, '受取利息'), (24, '雑収入'), (29, '営業外費用'),
           (30, '支払利息'), (31, '雑損失'), (37, '経常利益'), (45, '特別損失'),
-          (48, '棚卸資産廃棄損'), (52, '税引前当期純利益'), (53, '法人税等'), (57, '税引後当期純利益')]
+          (46, '固定資産売却損'), (47, '固定資産除却損'), (48, '棚卸資産廃棄損'), (52, '税引前当期純利益'), (53, '法人税等'), (57, '税引後当期純利益')]
 PL_EMPH = {11, 17, 18, 19, 20, 21, 29, 37, 45, 52, 57}
 body = [('', '', '', '', '', '', '', '', '(単位：千円)'),
         ('科目', PER4[0], '', PER4[1], '', PER4[2], '', PER4[3], ''),
@@ -446,10 +502,12 @@ restyle_rows(t, {i + 3: (3 if r in PL_EMPH else 4) for i, (r, _l) in enumerate(P
 for i, row in enumerate(body):
     fill_row(t, i, row)
 set_widths(t, [2.35, 1.10, 0.78, 1.10, 0.78, 1.10, 0.78, 1.10, 0.78])
-set_heights(t, [0.16, 0.28, 0.24] + [0.235] * len(PLROWS))
+set_heights(t, [0.16, 0.26, 0.22] + [0.212] * len(PLROWS))
 table_font(t, 8)
 align_cells(t, tuple(range(1, 9)), 'r', rows=range(3, len(body)))
 bold_rows(t, [i + 3 for i, (r, _l) in enumerate(PLROWS) if r in PL_EMPH])
+clear_fill(t, range(3, len(body)))
+ink(t, range(3, len(body)))
 
 # ============================================================ 18/19. 販管費・修正PLの算定
 def mod3_table(t, rows, emph, ws, labfn, extra=None):
@@ -470,6 +528,8 @@ def mod3_table(t, rows, emph, ws, labfn, extra=None):
     set_widths(t, [2.15, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.96])
     table_font(t, 8)
     align_cells(t, tuple(range(1, 10)), 'r', rows=range(3, len(body)))
+    clear_fill(t, range(3, len(body)))
+    ink(t, range(3, len(body)))
     return body
 
 s = S(18)
@@ -477,12 +537,14 @@ SGAROWS = list(range(5, 31)) + [39]
 b = mod3_table(s.shapes[4].table, SGAROWS, {39}, MSG, lbl)
 set_heights(s.shapes[4].table, [0.16, 0.26, 0.24] + [0.185] * len(SGAROWS))
 bold_rows(s.shapes[4].table, [len(b) - 1])
-set_text(s.shapes[0],
-  '従業員給与：現場責任者（淺野崇氏）の人件費を役員報酬へ振替。役員報酬：代表者の退任分を戻し入れ、'
-  '後任役員の同水準報酬を控除（差引ゼロ）。')
-set_text(s.shapes[5],
-  'リース料：非事業用車両のリース料を控除。接待交際費：適正水準4,000千円を超える部分を控除。'
-  '保険料：事業関連性の低い生命保険料を控除。')
+set_lines(s.shapes[0], [
+ '従業員給与：現場責任者（淺野崇氏）の人件費を役員報酬へ振替。',
+ '役員報酬：代表者の退任分を戻し入れ、後任役員の同水準報酬を控除（差引ゼロ）。',
+])
+set_lines(s.shapes[5], [
+ 'リース料：非事業用車両分を控除。接待交際費：適正水準4,000千円の超過分を控除。',
+ '保険料：事業関連性の低い生命保険料を控除。',
+])
 font_size(s.shapes[0], 8.5); font_size(s.shapes[5], 8.5)
 
 s = S(19)
@@ -495,12 +557,13 @@ for r, lab in ((62, '修正後営業利益（修正P/L）'), (63, '　経常的�
 b = mod3_table(s.shapes[4].table, MPLROWS, set(), MPL, lbl, extra=BRIDGE)
 set_heights(s.shapes[4].table, [0.16, 0.26, 0.24] + [0.32] * (len(MPLROWS) + len(BRIDGE)))
 bold_rows(s.shapes[4].table, [3 + len(MPLROWS) + len(BRIDGE) - 1])
-set_text(s.shapes[2],
-  '雑収入：社員割引に伴い事業へ付随して継続的に発生する部分は経常的な損益として正常収益力に加算する。'
-  'なお雑収入は営業外収益であるため修正P/L上の営業利益には含まれず、加算後の金額が企業概要書の調整項目合計と一致する。\n'
-  '支払利息：資金の調達方法から独立した会社財産の収益獲得力を評価するため、正常収益力は営業利益ベースで算定している。\n'
-  '特別損失：固定資産売却損968千円・除却損330千円は非経常的な損益であり、営業利益に含まれないため調整していない。'
-  '2026年3月の棚卸資産廃棄損44,000千円は基準日後の事象であり、修正B/Sで評価差額として反映している。')
+set_lines(s.shapes[2], [
+ '雑収入：社員割引に伴い事業へ付随して継続的に発生する部分は経常的な損益として正常収益力に加算する。'
+ 'なお雑収入は営業外収益であるため修正P/L上の営業利益には含まれず、加算後の金額が企業概要書の調整項目合計と一致する。',
+ '支払利息：資金の調達方法から独立した会社財産の収益獲得力を評価するため、正常収益力は営業利益ベースで算定している。',
+ '特別損失：固定資産売却損968千円・除却損330千円は非経常的な損益であり、営業利益に含まれないため調整していない。'
+ '2026年3月の棚卸資産廃棄損44,000千円は基準日後の事象であり、修正B/Sで評価差額として反映している。',
+])
 font_size(s.shapes[2], 8)
 
 # ============================================================ 21. 年買法
@@ -510,7 +573,7 @@ for i, (lab, v) in enumerate([('', '(単位：千円)'), (PER[2], '金額'),
                               ('簿価純資産額', num(BV_NET)), ('修正額', num(ADJ_NET)),
                               ('時価純資産', num(MV_NET))]):
     fill_row(t, i, (lab, v))
-table_font(t, 9); align_cells(t, (1,), 'r', rows=range(2, 5)); bold_rows(t, [4])
+table_font(t, 9); ink(t, range(2, 5)); align_cells(t, (1,), 'r', rows=range(2, 5)); bold_rows(t, [4])
 
 t = s.shapes[11].table                                  # 基準営業利益（9x4）
 rows = [('', '', '', '(単位：千円)'), ('　',) + tuple(PER),
@@ -523,7 +586,7 @@ rows = [('', '', '', '(単位：千円)'), ('　',) + tuple(PER),
         ('', '', '基準営業利益(三期加重平均)', num(BASE_OP))]
 for i, row in enumerate(rows):
     fill_row(t, i, row)
-table_font(t, 9); align_cells(t, (1, 2, 3), 'r', rows=range(2, 9)); bold_rows(t, [4, 6, 8])
+table_font(t, 9); ink(t, range(2, 9)); align_cells(t, (1, 2, 3), 'r', rows=range(2, 9)); bold_rows(t, [4, 6, 8])
 
 t = s.shapes[12].table                                  # 想定株式価値（5x4）
 for i, row in enumerate([('', '', '', '(単位：千円)'),
@@ -532,7 +595,7 @@ for i, row in enumerate([('', '', '', '(単位：千円)'),
                          ('営業権',) + tuple(num(x) for x in GW),
                          ('想定株式価値',) + tuple(num(x) for x in NB_VAL)]):
     fill_row(t, i, row)
-table_font(t, 9); align_cells(t, (1, 2, 3), 'r', rows=(3, 4)); align_cells(t, (1,), 'c', rows=(2,))
+table_font(t, 9); ink(t, range(2, 5)); align_cells(t, (1, 2, 3), 'r', rows=(3, 4)); align_cells(t, (1,), 'c', rows=(2,))
 bold_rows(t, [4])
 set_text(s.shapes[8],
   '・営業利益は過去3年の加重平均を採用（25年11月期：24年11月期：23年11月期　＝５：３：２）')
@@ -549,7 +612,7 @@ for i, (lab, v) in enumerate([('', '(単位：千円)'), (PER[2], '金額'),
                               ('デットライク', num(DEBTLIKE)),
                               ('ネットキャッシュ', num(NETCASH))]):
     fill_row(t, i, (lab, v))
-table_font(t, 9); align_cells(t, (1,), 'r', rows=range(2, 5)); bold_rows(t, [4])
+table_font(t, 9); ink(t, range(2, 5)); align_cells(t, (1,), 'r', rows=range(2, 5)); bold_rows(t, [4])
 
 t = s.shapes[6].table
 rows = [('', '', '', '(単位：千円)'), ('　',) + tuple(PER),
@@ -562,7 +625,7 @@ rows = [('', '', '', '(単位：千円)'), ('　',) + tuple(PER),
         ('', '', '基準EBITDA', num(BASE_EB))]
 for i, row in enumerate(rows):
     fill_row(t, i, row)
-table_font(t, 9); align_cells(t, (1, 2, 3), 'r', rows=range(2, 9)); bold_rows(t, [6, 8])
+table_font(t, 9); ink(t, range(2, 9)); align_cells(t, (1, 2, 3), 'r', rows=range(2, 9)); bold_rows(t, [6, 8])
 
 t = s.shapes[7].table
 for i, row in enumerate([('', '', '', '(単位：千円)'),
@@ -571,7 +634,7 @@ for i, row in enumerate([('', '', '', '(単位：千円)'),
                          ('ネットキャッシュ', num(NETCASH), '　', '　'),
                          ('想定株式価値',) + tuple(num(x) for x in EV_EQ)]):
     fill_row(t, i, row)
-table_font(t, 9); align_cells(t, (1, 2, 3), 'r', rows=(2, 4)); align_cells(t, (1,), 'c', rows=(3,))
+table_font(t, 9); ink(t, range(2, 5)); align_cells(t, (1, 2, 3), 'r', rows=(2, 4)); align_cells(t, (1,), 'c', rows=(3,))
 bold_rows(t, [4])
 
 # ============================================================ 追加① 参考｜進行期の年換算
@@ -606,6 +669,7 @@ align_cells(t, (0, 1, 3), 'l', rows=range(1, len(REF)))
 align_cells(t, (2,), 'r', rows=range(1, len(REF)))
 header_row(t, 0, 9)
 pad_col(t, 1); pad_col(t, 3, left=0.14)
+ink(t, range(1, len(REF)))
 bold_rows(t, [3, 4, 6, len(REF) - 1])
 _nt = s.shapes.add_textbox(Inches(0.37), Inches(6.30), Inches(10.95), Inches(0.80))
 _nt.text_frame.word_wrap = True
@@ -662,6 +726,7 @@ align_cells(t, (0, 1, 3), 'l', rows=range(1, len(TODO)))
 align_cells(t, (2,), 'c', rows=range(1, len(TODO)))
 header_row(t, 0, 8.5)
 pad_col(t, 1); pad_col(t, 3, left=0.12)
+ink(t, range(1, len(TODO)))
 _nt = s.shapes.add_textbox(Inches(0.37), Inches(6.55), Inches(10.95), Inches(1.00))
 _nt.text_frame.word_wrap = True
 for i, line in enumerate([
