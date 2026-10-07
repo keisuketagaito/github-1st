@@ -221,7 +221,7 @@ set_lines(s.shapes[5], [
  '貴社と弊社間で締結している秘密保持契約書に定めのある秘密情報に該当致します。',
 ])
 set_text(s.shapes[6].shapes[1],
-  '本書で用いられる「本件取引」「本件試算目的」の定義は、「株式価値の試算結果」のページ（P.7）に記載しております。')
+  '本書で用いられる「本件取引」「本件試算目的」の定義は、「株式価値試算結果」のページ（P.7）に記載しております。')
 _mail = s.shapes[1].table.cell(1, 3)
 for _p in _mail.text_frame.paragraphs:
     for _r in _p.runs:
