@@ -42,11 +42,17 @@ description: >
 
 ### Step 3. IMパート（IM→ セクション）の作成
 
-会社概要・PLハイライト・BSハイライト・取引先・仕入先・従業員等を埋める。ここが概要書の各ページの原本になる。
+会社概要・PLハイライト・BSハイライト・取引先・仕入先・従業員等を、**概要書の表と同じ行・列・書式の「貼付範囲」**として組む。
+ここが概要書の各ページの原本になる。範囲内の数値は財務入力→・VR→を数式で参照し、各シートのA2に貼付範囲と貼り先ページを明記する。
+列構成・書式の標準は `references/im-design.md`、書式キットは `scripts/master_im_style.py`。
+組み終えたらLibreOfficeで再計算し、`scripts/inject_cache.py` で値を書き戻す（書式を壊さないため）。
 
-### Step 4. パワポへの反映
+### Step 4. パワポへの反映（貼付範囲を貼る）
 
-既存の概要書テンプレート（前回案件のファイル）を複製して中身を差し替える。ページ構成と各ページの作り方は `references/im-structure.md` を読むこと。
+当社の概要書テンプレートを複製し、**業種に合わせてページを削除・転用・追加**してから、各ページに貼付範囲を貼る
+（`scripts/im_paste.py` の `paste_range`。パワポ上で数字は打たない）。リード文は `set_lead`、Commentはテンプレートの既存の枠に
+`fill_comment` で書く（≪見出し≫10pt太字・本文9pt、鳥塚準拠）。独自の色付き箱や青い見出しは作らない。
+作り方・デザイン仕様・配置の目安は `references/im-design.md`、ページ構成と各ページで言うべきことは `references/im-structure.md` を読むこと。
 PowerPointファイルを壊さずに編集する具体的な手順・落とし穴は `references/pptx-ops.md` にまとめてある。**スライドの追加・削除・表の行数変更をする前に必ず読むこと。**
 
 ### Step 5. 案件特有の対応
@@ -126,8 +132,17 @@ print('変更スライド:', diff)
 | ファイル | 読むタイミング |
 |---|---|
 | `references/master-sheets.md` | 案件マスターへ転記するとき／どのシートがどのページの原本かを知りたいとき |
-| `references/im-structure.md` | 概要書のページを作る・直すとき |
+| `references/im-design.md` | 概要書を作るとき（貼付範囲方式の手順・デザイン仕様・業種別のページ構成・スクリプトの使い方） |
+| `references/im-structure.md` | 概要書のページを作る・直すとき（標準ページ構成と各ページで言うべきこと） |
 | `references/valuation.md` | 評価書を作るとき／修正BS・修正PL・株価算定をするとき |
 | `references/company-split.md` | 会社分割・非事業用資産の切出しがある案件のとき |
 | `references/hearing-list.md` | ヒアリング項目一覧を作るとき |
 | `references/pptx-ops.md` | パワポのスライド追加・削除・表の行数変更・図形描画をするとき |
+
+## スクリプト（`scripts/`）
+
+| ファイル | 用途 |
+|---|---|
+| `master_im_style.py` | 案件マスターIM→シートの貼付範囲を鳥塚準拠の書式で組む（openpyxl） |
+| `inject_cache.py` | LibreOfficeで再計算した値を、書式を保ったまま元のマスターへ書き戻す |
+| `im_paste.py` | 貼付範囲をパワポの表として貼る（`paste_range`）、リード文・Comment・注記・テンプレート図形の複製 |
