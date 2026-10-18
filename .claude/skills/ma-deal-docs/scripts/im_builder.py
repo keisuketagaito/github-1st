@@ -652,6 +652,60 @@ def flow_block(slide, x, y, w, h, title, lines, color=BLUE,
             size=8.3, color=NOTE, font=JP, line_sp=1.18, space=1)
 
 
+def photo_tile(slide, path, x, y, w, h, caption=None, cap_size=8,
+               line=GREY, lw=0.75):
+    """写真を枠いっぱいに中央トリミングして置く。無ければ何もせず None を返す。
+
+    概要書の写真は「枠を決めてから中身を入れる」。縦横比の違う写真を
+    そのまま並べると天地が揃わず、素人がつくった資料に見える。
+    `crop_*` はPowerPoint側のトリミングなので原本は劣化しない。
+
+    **ファイルが無いときは何も描かない**のが肝心。写真の受領待ちでも
+    頁として成立する作りにしておけば、届いた順に差し込むだけで完成する。
+
+        photo_tile(s, f'{PH}/外観01.jpg', 0.34, 1.62, 3.44, 2.30, '店舗外観')
+    """
+    if not path or not os.path.exists(path):
+        return None
+    pic = slide.shapes.add_picture(path, Inches(x), Inches(y),
+                                   Inches(w), Inches(h))
+    try:
+        iw, ih = pic.image.size
+        box, src = w / h, iw / ih
+        if src > box:                      # 原本が横長 → 左右を切る
+            f = (1 - box / src) / 2
+            pic.crop_left = pic.crop_right = f
+        elif src < box:                    # 原本が縦長 → 上下を切る
+            f = (1 - src / box) / 2
+            pic.crop_top = pic.crop_bottom = f
+    except Exception:
+        pass
+    if line is not None:
+        pic.line.color.rgb = line
+        pic.line.width = Pt(lw)
+    if caption:
+        textbox(slide, x, y + h + 0.04, w, 0.20, caption,
+                size=cap_size, color=NOTE, font=JP)
+    return pic
+
+
+def photo_strip(slide, items, x, y, w, h, gap=0.14, cap_size=8):
+    """写真を横一列に並べる。存在するファイルだけを詰めて配置する。
+
+    items=[(パス, キャプション), ...]。戻り値は実際に置けた枚数。
+    0枚なら何も描かないので、呼び出し側は戻り値を見て
+    「写真が無い前提のレイアウト」に切り替えられる。
+    """
+    have = [(p, c) for p, c in items if p and os.path.exists(p)]
+    if not have:
+        return 0
+    n = len(have)
+    tw = (w - gap * (n - 1)) / n
+    for i, (p, c) in enumerate(have):
+        photo_tile(slide, p, x + i * (tw + gap), y, tw, h, c, cap_size)
+    return n
+
+
 def connector(slide, x, y, w, color=BLUE, thickness=0.024):
     rect(slide, x, y - thickness / 2, w, thickness, fill=color)
 
