@@ -3,3 +3,9 @@ Project_OMAKASE_*.zip
 
 # macOS
 .DS_Store
+
+# 商品の制作用ファイル（フォント・中間生成物）は再生成できるので含めない
+project-omakase/90_商品/*/source/fonts/
+project-omakase/90_商品/*/source/dist/
+project-omakase/90_商品/*/source/mock/
+project-omakase/90_商品/*/source/_build_*.html

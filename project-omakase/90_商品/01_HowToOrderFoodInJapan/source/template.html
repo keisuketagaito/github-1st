@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How to Order Food in Japan</title>
+<style>
+@font-face { font-family: "NotoJP"; font-weight: 400; src: url("fonts/NotoSansJP-400.ttf"); }
+@font-face { font-family: "NotoJP"; font-weight: 700; src: url("fonts/NotoSansJP-700.ttf"); }
+@font-face { font-family: "NotoJP"; font-weight: 900; src: url("fonts/NotoSansJP-900.ttf"); }
+@font-face { font-family: "InterTT"; font-weight: 400; font-style: normal; src: url("fonts/Inter-400.ttf"); }
+@font-face { font-family: "InterTT"; font-weight: 600; font-style: normal; src: url("fonts/Inter-600.ttf"); }
+@font-face { font-family: "InterTT"; font-weight: 700; font-style: normal; src: url("fonts/Inter-700.ttf"); }
+@font-face { font-family: "InterTT"; font-weight: 800; font-style: normal; src: url("fonts/Inter-800.ttf"); }
+@font-face { font-family: "InterTT"; font-weight: 900; font-style: normal; src: url("fonts/Inter-900.ttf"); }
+@font-face { font-family: "InterTT"; font-weight: 400; font-style: italic; src: url("fonts/Inter-400i.ttf"); }
+@font-face { font-family: "NotoSerifJP"; font-weight: 700; src: url("fonts/NotoSerifJP-700.ttf"); }
+
+:root {
+  --pw: __PW__;
+  --ph: __PH__;
+  --ink: #1d2433;
+  --indigo: #23395d;
+  --indigo-soft: #e6ebf3;
+  --red: #c8432b;
+  --red-soft: #fbe9e4;
+  --cream: #f7f1e6;
+  --muted: #5f6673;
+  --line: #d9dde4;
+}
+@page { size: __PW__ __PH__; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "InterTT", "NotoJP", sans-serif;
+  color: var(--ink);
+  font-size: 10.4pt;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.jp { font-family: "NotoJP", sans-serif; }
+.serif-jp { font-family: "NotoSerifJP", serif; }
+
+.page {
+  width: var(--pw); height: var(--ph);
+  padding: 16mm 17mm 14mm;
+  position: relative; overflow: hidden;
+  page-break-after: always; break-after: page;
+  background: #fff;
+}
+.page:last-child { page-break-after: auto; break-after: auto; }
+.folio {
+  position: absolute; bottom: 8mm; left: 17mm; right: 17mm;
+  display: flex; justify-content: space-between;
+  font-size: 7.5pt; color: var(--muted); letter-spacing: .04em;
+}
+
+/* ---------- headings ---------- */
+.part-tag {
+  display: inline-block; font-size: 7.6pt; font-weight: 700; letter-spacing: .16em;
+  color: var(--red); text-transform: uppercase; margin-bottom: 2mm;
+}
+h1.part {
+  font-size: 23pt; line-height: 1.12; margin: 0 0 1.5mm; font-weight: 800; letter-spacing: -.01em;
+}
+.part-jp { font-size: 11pt; color: var(--muted); margin-bottom: 5mm; }
+.lede { font-size: 11pt; color: #33394a; margin: 0 0 5mm; max-width: 155mm; }
+h2 { font-size: 12.5pt; margin: 5mm 0 2mm; font-weight: 750; }
+h3 { font-size: 10.6pt; margin: 3mm 0 1mm; font-weight: 700; }
+p { margin: 0 0 2.4mm; }
+
+/* ---------- blocks ---------- */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3.5mm; }
+.card {
+  border: 1px solid var(--line); border-radius: 3mm; padding: 4mm 4.2mm;
+  background: #fff;
+}
+.card h3 { margin-top: 0; }
+.card p:last-child { margin-bottom: 0; }
+.note {
+  border-left: 1.2mm solid var(--red); background: var(--red-soft);
+  border-radius: 0 2.5mm 2.5mm 0; padding: 3.4mm 4.2mm; margin: 3.5mm 0;
+}
+.note.blue { border-left-color: var(--indigo); background: var(--indigo-soft); }
+.note.cream { border-left-color: #c9a86a; background: var(--cream); }
+.note h3 { margin-top: 0; }
+.note p:last-child { margin-bottom: 0; }
+.kicker { font-weight: 700; color: var(--red); }
+
+ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: s; }
+ol.steps li {
+  counter-increment: s; position: relative; padding: 0 0 2.8mm 10mm; min-height: 8mm;
+}
+ol.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: -.3mm;
+  width: 6.6mm; height: 6.6mm; border-radius: 50%;
+  background: var(--indigo); color: #fff; font-weight: 700; font-size: 9pt;
+  display: flex; align-items: center; justify-content: center;
+}
+ol.steps li b { display: block; }
+
+table.words { width: 100%; border-collapse: collapse; font-size: 9.6pt; }
+table.words th {
+  text-align: left; font-size: 7.4pt; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 1.4px solid var(--ink); padding: 1.6mm 2mm;
+}
+table.words td { padding: 1.7mm 2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.words td.jpw { font-family: "NotoJP"; font-weight: 700; font-size: 11pt; white-space: nowrap; }
+table.words td.rom { color: var(--muted); font-style: italic; white-space: nowrap; }
+
+.pill {
+  display: inline-block; font-size: 7.6pt; font-weight: 700; letter-spacing: .06em;
+  padding: .7mm 2.2mm; border-radius: 10mm; background: var(--indigo-soft); color: var(--indigo);
+}
+.small { font-size: 8.6pt; color: var(--muted); }
+.two-col { columns: 2; column-gap: 7mm; }
+.two-col > * { break-inside: avoid; }
+
+/* ---------- cover ---------- */
+.cover { background: var(--cream); padding: 0; }
+.cover .band {
+  position: absolute; top: 0; left: 0; right: 0; height: 96mm; background: var(--indigo);
+  overflow: hidden;
+}
+/* のれん：上は一枚布、切れ込みは下半分だけ */
+.cover .noren { position: absolute; top: 60mm; left: 0; right: 0; height: 36mm; display: flex; }
+.cover .noren div { flex: 1; border-right: 1.6mm solid var(--cream); }
+.cover .noren div:last-child { border-right: none; }
+.cover .noren-jp {
+  position: absolute; top: 17mm; left: 0; right: 0; text-align: center;
+  font-family: "NotoSerifJP"; font-weight: 700; font-size: 50pt; color: #fff; letter-spacing: .12em;
+}
+.cover .noren-sub {
+  position: absolute; top: 44mm; left: 0; right: 0; text-align: center;
+  color: #c9d3e6; font-size: 8.6pt; letter-spacing: .3em; text-transform: uppercase;
+}
+.cover .seal {
+  position: absolute; top: 80mm; right: 22mm; width: 34mm; height: 34mm; border-radius: 50%;
+  background: var(--red); color: #fff; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center; transform: rotate(-8deg);
+  box-shadow: 0 1.5mm 4mm rgba(0,0,0,.18);
+}
+.cover .seal b { font-size: 21pt; line-height: 1; }
+.cover .seal span { font-size: 7.4pt; font-weight: 700; letter-spacing: .06em; line-height: 1.25; margin-top: 1mm; }
+.cover .titlebox { position: absolute; top: 122mm; left: 22mm; right: 22mm; }
+.cover .eyebrow { font-size: 8.4pt; font-weight: 700; letter-spacing: .22em; color: var(--red); text-transform: uppercase; }
+.cover h1 { font-size: 40pt; line-height: 1.02; margin: 3mm 0 5mm; font-weight: 850; letter-spacing: -.02em; }
+.cover .sub { font-size: 13pt; color: #3b4254; line-height: 1.4; max-width: 150mm; }
+.cover .chips { margin-top: 8mm; display: flex; flex-wrap: wrap; gap: 2.4mm; }
+.cover .chips span {
+  border: 1.2px solid var(--ink); border-radius: 10mm; padding: 1.4mm 3.6mm; font-size: 9pt; font-weight: 600;
+}
+.cover .stats {
+  position: absolute; bottom: 30mm; left: 22mm; right: 22mm;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm;
+}
+.cover .stats div { background: #fff; border-radius: 3mm; padding: 4mm 3mm; text-align: center; border: 1px solid #e6dcc8; }
+.cover .stats b { display: block; font-size: 22pt; line-height: 1; color: var(--indigo); font-weight: 800; }
+.cover .stats span { display: block; margin-top: 1.6mm; font-size: 8pt; font-weight: 600; color: #3b4254; line-height: 1.25; }
+.cover .foot {
+  position: absolute; bottom: 14mm; left: 22mm; right: 22mm; display: flex; justify-content: space-between;
+  font-size: 8.4pt; color: var(--muted); border-top: 1px solid #d8ccb6; padding-top: 3mm;
+}
+
+/* ---------- toc ---------- */
+.toc { list-style: none; padding: 0; margin: 3mm 0 0; }
+.toc li {
+  display: flex; align-items: baseline; gap: 3mm; padding: 2.6mm 0; border-bottom: 1px solid var(--line);
+  font-size: 11pt;
+}
+.toc .n { font-weight: 800; color: var(--red); width: 9mm; }
+.toc .t { flex: 1; font-weight: 600; }
+.toc .t small { display: block; font-weight: 400; color: var(--muted); font-size: 8.8pt; }
+.toc .pg { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---------- phrase cards ---------- */
+.cards { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 4.4mm; height: 226mm; }
+.pc {
+  border: 1.4px solid var(--ink); border-radius: 3.6mm; padding: 4.2mm 4.6mm 4mm;
+  display: flex; flex-direction: column; position: relative; background: #fff;
+}
+.pc .num {
+  position: absolute; top: 3.4mm; right: 4mm; font-size: 7.6pt; font-weight: 700; color: var(--muted);
+}
+.pc .cat { font-size: 6.8pt; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--red); }
+.pc .ja {
+  font-family: "NotoJP"; font-weight: 900; font-size: 19.5pt; line-height: 1.3;
+  flex: 1; display: flex; align-items: center; margin: 1.5mm 0;
+}
+.pc .ro { font-size: 9pt; color: var(--muted); font-style: italic; }
+.pc .en { font-size: 10.4pt; font-weight: 700; margin-top: .6mm; }
+.pc.show { border-color: var(--red); }
+
+/* ---------- cheat sheet ---------- */
+.cheat { border: 1.6px dashed var(--muted); border-radius: 4mm; padding: 6mm; }
+.cheat table { width: 100%; border-collapse: collapse; }
+.cheat td { padding: 1.9mm 1.5mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cheat td.j { font-family: "NotoJP"; font-weight: 700; font-size: 11pt; white-space: nowrap; }
+.cheat td.r { font-style: italic; color: var(--muted); white-space: nowrap; font-size: 9pt; }
+.rules { display: grid; grid-template-columns: 1fr 1fr; gap: 2.6mm 6mm; margin-top: 4mm; }
+.rules div { font-size: 9.6pt; padding-left: 5mm; position: relative; }
+.rules div::before { content: "✓"; position: absolute; left: 0; color: var(--red); font-weight: 800; }
+
+svg text { font-family: "NotoJP", "InterTT", sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- ============ 1. COVER ============ -->
+<section class="page cover">
+  <div class="band">
+    <div class="noren"><div></div><div></div><div></div><div></div><div></div></div>
+  </div>
+  <div class="noren-jp">いただきます</div>
+  <div class="noren-sub">Itadakimasu · "Let's eat"</div>
+  <div class="seal"><b>17</b><span>PHRASE<br>CARDS<br>INCLUDED</span></div>
+
+  <div class="titlebox">
+    <div class="eyebrow">A Japan resident's guide</div>
+    <h1>How to Order<br>Food in Japan</h1>
+    <div class="sub">Ramen ticket machines, izakaya, conveyor-belt sushi and tablet ordering — exactly how they work, plus phrase cards you can simply show to staff.</div>
+    <div class="chips">
+      <span>Ticket machines</span><span>Izakaya</span><span>Conveyor-belt sushi</span>
+      <span>Tablet &amp; QR ordering</span><span>Paying</span>
+    </div>
+  </div>
+  <div class="stats">
+    <div><b>18</b><span>pages</span></div>
+    <div><b>17</b><span>phrase cards<br>to show staff</span></div>
+    <div><b>50+</b><span>menu &amp; sign<br>words decoded</span></div>
+    <div><b>1</b><span>printable<br>cheat sheet</span></div>
+  </div>
+  <div class="foot"><span>Printable · Phone-friendly</span><span>__EDITION__</span></div>
+</section>
+
+<!-- ============ 2. HOW TO USE + CONTENTS ============ -->
+<section class="page">
+  <div class="part-tag">Start here</div>
+  <h1 class="part">How to use this guide</h1>
+  <p class="lede">The places visitors find most confusing — the ramen shop with a machine at the door, the izakaya where a dish you didn't order appears — are often where the best food is. This guide removes the guesswork.</p>
+
+  <div class="grid3">
+    <div class="card"><span class="pill">BEFORE YOU GO</span><h3 style="margin-top:2.4mm">Read Parts 1–7</h3><p>About 15 minutes. You'll walk into any restaurant knowing what's about to happen.</p></div>
+    <div class="card"><span class="pill">AT THE TABLE</span><h3 style="margin-top:2.4mm">Show the cards</h3><p>Open Part 8 on your phone, turn the screen toward staff and point. No speaking needed.</p></div>
+    <div class="card"><span class="pill">IN YOUR WALLET</span><h3 style="margin-top:2.4mm">Print the cheat sheet</h3><p>The last page fits everything essential on one sheet.</p></div>
+  </div>
+
+  <h2 style="margin-top:9mm">Contents</h2>
+  <ol class="toc">
+    <li><span class="n">1</span><span class="t">Before You Go<small>Tipping, free water, calling staff, cash vs card, smoking</small></span><span class="pg">3</span></li>
+    <li><span class="n">2</span><span class="t">Ticket Machines<small>Ramen, soba, udon and set-meal shops · button decoder</small></span><span class="pg">4</span></li>
+    <li><span class="n">3</span><span class="t">Tablet &amp; QR Ordering<small>The words you'll see on screen</small></span><span class="pg">6</span></li>
+    <li><span class="n">4</span><span class="t">Izakaya<small>What "otoshi" is, ordering in rounds, all-you-can-drink</small></span><span class="pg">7</span></li>
+    <li><span class="n">5</span><span class="t">Conveyor-Belt Sushi<small>Touch panels, plates, making your own green tea</small></span><span class="pg">9</span></li>
+    <li><span class="n">6</span><span class="t">Paying &amp; Leaving<small>Where to pay, splitting the bill, the cash tray</small></span><span class="pg">11</span></li>
+    <li><span class="n">7</span><span class="t">Etiquette That Actually Matters<small>…and what you can stop worrying about</small></span><span class="pg">12</span></li>
+    <li><span class="n">8</span><span class="t">Phrase Cards<small>17 cards to show staff + what staff will say to you</small></span><span class="pg">13</span></li>
+    <li><span class="n">✂</span><span class="t">One-Page Cheat Sheet<small>Print it, fold it, keep it</small></span><span class="pg">17</span></li>
+  </ol>
+  <div class="folio"><span>How to Order Food in Japan</span><span>2</span></div>
+</section>
+
+<!-- ============ 3. PART 1 BEFORE YOU GO ============ -->
+<section class="page">
+  <div class="part-tag">Part 1</div>
+  <h1 class="part">Before You Go</h1>
+  <div class="part-jp jp">行く前に知っておくこと</div>
+  <p class="lede">Six things every Japanese person knows — and almost no first-time visitor does.</p>
+
+  <div class="grid2">
+    <div class="card"><h3>1. No tipping. Ever.</h3><p>Service is part of the price. If you leave money on the table, a staff member may run after you to give it back. A sincere "thank you" is the tip.</p></div>
+    <div class="card"><h3>2. Water and tea are free</h3><p>They often arrive as soon as you sit down. At some shops it's self-service — look for a water jug or dispenser near the counter.</p></div>
+    <div class="card"><h3>3. "Sumimasen!" calls staff</h3><p>Raise your hand and call out <b>sumimasen</b> ("excuse me"). It isn't rude — it's how it works. Many tables also have a call button.</p></div>
+    <div class="card"><h3>4. The wet towel is for your hands</h3><p>That's the <i>oshibori</i>. Use it to clean your hands before eating. Leave it folded beside your plate.</p></div>
+    <div class="card"><h3>5. Cash still matters</h3><p>Cards and IC cards (Suica, PASMO, ICOCA) are accepted in more places every year, but small, long-running shops can be cash-only. Carry ¥1,000 notes and coins.</p></div>
+    <div class="card"><h3>6. Most places are non-smoking</h3><p>Since April 2020, restaurants are non-smoking indoors by default. Some small, long-established bars and izakaya may still allow it — look for a sign at the entrance.</p></div>
+  </div>
+
+  <div class="note blue" style="margin-top:5mm">
+    <h3>Signs worth recognising</h3>
+    <table class="words">
+      <tr><td class="jpw">営業中</td><td class="rom">eigyō-chū</td><td>Open</td><td class="jpw">準備中</td><td class="rom">junbi-chū</td><td>Closed / preparing</td></tr>
+      <tr><td class="jpw">禁煙</td><td class="rom">kin'en</td><td>No smoking</td><td class="jpw">喫煙可</td><td class="rom">kitsuen-ka</td><td>Smoking allowed</td></tr>
+      <tr><td class="jpw">満席</td><td class="rom">manseki</td><td>Full</td><td class="jpw">現金のみ</td><td class="rom">genkin nomi</td><td>Cash only</td></tr>
+    </table>
+  </div>
+  <div class="folio"><span>Part 1 · Before You Go</span><span>3</span></div>
+</section>
+
+<!-- ============ 4. PART 2 TICKET MACHINES (1) ============ -->
+<section class="page">
+  <div class="part-tag">Part 2</div>
+  <h1 class="part">Ticket Machines</h1>
+  <div class="part-jp jp">券売機・食券機</div>
+  <p class="lede">At many ramen, soba, udon and set-meal shops you <b>pay before you sit down</b>. If there's a machine near the door, that's where your meal starts.</p>
+
+  <div style="display:grid; grid-template-columns: 82mm 1fr; gap: 7mm; align-items:start">
+    <svg viewBox="0 0 320 400" width="82mm" aria-label="Ticket machine diagram">
+      <rect x="10" y="10" width="300" height="380" rx="18" fill="#23395d"/>
+      <rect x="28" y="28" width="264" height="232" rx="8" fill="#f7f1e6"/>
+      <!-- buttons -->
+      <g font-size="15" font-weight="700" text-anchor="middle">
+        <rect x="40" y="40" width="74" height="62" rx="6" fill="#fff" stroke="#c8432b" stroke-width="3"/>
+        <text x="77" y="68" fill="#1d2433">醤油</text><text x="77" y="88" fill="#1d2433" font-size="12">ラーメン</text>
+        <rect x="123" y="40" width="74" height="62" rx="6" fill="#fff" stroke="#d9dde4" stroke-width="2"/>
+        <text x="160" y="68" fill="#1d2433">味噌</text><text x="160" y="88" fill="#1d2433" font-size="12">ラーメン</text>
+        <rect x="206" y="40" width="74" height="62" rx="6" fill="#fff" stroke="#d9dde4" stroke-width="2"/>
+        <text x="243" y="76" fill="#1d2433">つけ麺</text>
+        <rect x="40" y="111" width="74" height="62" rx="6" fill="#fff" stroke="#d9dde4" stroke-width="2"/>
+        <text x="77" y="147" fill="#1d2433">大盛り</text>
+        <rect x="123" y="111" width="74" height="62" rx="6" fill="#fff" stroke="#d9dde4" stroke-width="2"/>
+        <text x="160" y="147" fill="#1d2433">味玉</text>
+        <rect x="206" y="111" width="74" height="62" rx="6" fill="#fff" stroke="#d9dde4" stroke-width="2"/>
+        <text x="243" y="147" fill="#1d2433">ライス</text>
+        <rect x="40" y="182" width="74" height="62" rx="6" fill="#fff" stroke="#d9dde4" stroke-width="2"/>
+        <text x="77" y="218" fill="#1d2433">餃子</text>
+        <rect x="123" y="182" width="74" height="62" rx="6" fill="#fff" stroke="#d9dde4" stroke-width="2"/>
+        <text x="160" y="218" fill="#1d2433">ビール</text>
+        <rect x="206" y="182" width="74" height="62" rx="6" fill="#e4e6ea" stroke="#d9dde4" stroke-width="2"/>
+        <text x="243" y="218" fill="#9aa0aa">売切</text>
+      </g>
+      <!-- slots -->
+      <rect x="40" y="280" width="120" height="26" rx="5" fill="#0f1a2b"/>
+      <text x="100" y="298" fill="#fff" font-size="12" text-anchor="middle" font-weight="700">紙幣 Notes</text>
+      <rect x="180" y="280" width="50" height="26" rx="5" fill="#0f1a2b"/>
+      <text x="205" y="298" fill="#fff" font-size="11" text-anchor="middle" font-weight="700">硬貨</text>
+      <circle cx="262" cy="293" r="16" fill="#c8432b"/>
+      <text x="262" y="298" fill="#fff" font-size="10" text-anchor="middle" font-weight="700">おつり</text>
+      <rect x="70" y="326" width="180" height="44" rx="8" fill="#0f1a2b"/>
+      <text x="160" y="353" fill="#fff" font-size="12" text-anchor="middle" font-weight="700">Ticket &amp; change</text>
+      <!-- callouts -->
+      <g font-size="15" font-weight="800" fill="#fff" text-anchor="middle">
+        <circle cx="22" cy="293" r="13" fill="#c8432b"/><text x="22" y="298">1</text>
+        <circle cx="40" cy="40" r="13" fill="#c8432b"/><text x="40" y="45">2</text>
+        <circle cx="40" cy="111" r="13" fill="#c8432b"/><text x="40" y="116">3</text>
+        <circle cx="70" cy="348" r="13" fill="#c8432b"/><text x="70" y="353">4</text>
+      </g>
+    </svg>
+
+    <div>
+      <ol class="steps">
+        <li><b>Insert money first</b>Notes or coins. Lit buttons show what you can now buy. Some newer machines let you choose first, then pay by card or IC card.</li>
+        <li><b>Press your dish</b>One button = one ticket.</li>
+        <li><b>Add extras</b>Large size, egg, rice — each is a separate button and a separate ticket.</li>
+        <li><b>Take your ticket(s) and change</b>If change doesn't drop, press <span class="jp" style="font-weight:700">おつり</span> (otsuri).</li>
+        <li><b>Hand the tickets to staff</b>…or place them on the counter in front of your seat. Then sit where you're shown.</li>
+      </ol>
+      <div class="note">
+        <h3>Bring ¥1,000 notes</h3>
+        <p>Some machines don't accept ¥10,000 notes, or the new banknotes issued in 2024. Keep a few ¥1,000 notes and coins for ramen shops.</p>
+      </div>
+      <div class="note cream">
+        <h3>Can't read the buttons?</h3>
+        <p>Buttons with photos are your friend. The <b>top-left button is often the shop's signature dish</b>. Point your phone's camera translator at the machine — or show card&nbsp;12 to staff.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Part 2 · Ticket Machines</span><span>4</span></div>
+</section>
+
+<!-- ============ 5. PART 2 (2) BUTTON DECODER ============ -->
+<section class="page">
+  <div class="part-tag">Part 2 · continued</div>
+  <h1 class="part">Button Decoder</h1>
+  <div class="part-jp jp">ボタンの読み方</div>
+
+  <div class="grid2" style="gap:7mm">
+    <div>
+      <h2 style="margin-top:0">The dish</h2>
+      <table class="words">
+        <tr><th>Button</th><th>Say</th><th>Means</th></tr>
+        <tr><td class="jpw">醤油</td><td class="rom">shōyu</td><td>Soy-sauce broth</td></tr>
+        <tr><td class="jpw">味噌</td><td class="rom">miso</td><td>Miso broth</td></tr>
+        <tr><td class="jpw">塩</td><td class="rom">shio</td><td>Salt broth (light)</td></tr>
+        <tr><td class="jpw">豚骨</td><td class="rom">tonkotsu</td><td>Pork-bone broth (rich)</td></tr>
+        <tr><td class="jpw">つけ麺</td><td class="rom">tsukemen</td><td>Noodles you dip</td></tr>
+        <tr><td class="jpw">定食</td><td class="rom">teishoku</td><td>Set meal (rice, soup, sides)</td></tr>
+        <tr><td class="jpw">単品</td><td class="rom">tanpin</td><td>Dish only, no set</td></tr>
+        <tr><td class="jpw">売切</td><td class="rom">urikire</td><td>Sold out</td></tr>
+      </table>
+    </div>
+    <div>
+      <h2 style="margin-top:0">Size &amp; extras</h2>
+      <table class="words">
+        <tr><th>Button</th><th>Say</th><th>Means</th></tr>
+        <tr><td class="jpw">並</td><td class="rom">nami</td><td>Regular size</td></tr>
+        <tr><td class="jpw">大盛り</td><td class="rom">ōmori</td><td>Large size</td></tr>
+        <tr><td class="jpw">小盛り</td><td class="rom">komori</td><td>Small size</td></tr>
+        <tr><td class="jpw">味玉</td><td class="rom">ajitama</td><td>Seasoned soft-boiled egg</td></tr>
+        <tr><td class="jpw">チャーシュー</td><td class="rom">chāshū</td><td>Sliced roast pork</td></tr>
+        <tr><td class="jpw">替玉</td><td class="rom">kaedama</td><td>Extra noodles (refill)</td></tr>
+        <tr><td class="jpw">ライス</td><td class="rom">raisu</td><td>Bowl of rice</td></tr>
+        <tr><td class="jpw">餃子</td><td class="rom">gyōza</td><td>Pan-fried dumplings</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="note blue" style="margin-top:7mm">
+    <h3>What staff may ask after you hand over the ticket</h3>
+    <p>At some ramen shops — especially rich, pork-bone styles — staff ask how you'd like your bowl.</p>
+    <table class="words" style="margin-top:2mm">
+      <tr><td class="jpw">麺の硬さは？</td><td class="rom">Men no katasa wa?</td><td>How firm would you like your noodles?</td></tr>
+      <tr><td class="jpw">硬め ／ 普通 ／ 柔らかめ</td><td class="rom">katame / futsū / yawarakame</td><td>Firm / regular / soft</td></tr>
+      <tr><td class="jpw">味の濃さ ／ 油の量</td><td class="rom">aji no kosa / abura no ryō</td><td>Flavour strength / amount of oil</td></tr>
+    </table>
+  </div>
+  <div class="note" style="margin-top:4mm">
+    <p><span class="kicker">The insider shortcut:</span> when in doubt, answer <b>"futsū"</b> (regular) to everything. It's always a safe, normal answer.</p>
+  </div>
+  <div class="folio"><span>Part 2 · Ticket Machines</span><span>5</span></div>
+</section>
+
+<!-- ============ 6. PART 3 TABLET & QR ============ -->
+<section class="page">
+  <div class="part-tag">Part 3</div>
+  <h1 class="part">Tablet &amp; QR Ordering</h1>
+  <div class="part-jp jp">タブレット・QRコード注文</div>
+  <p class="lede">More and more restaurants let you order from a tablet at your table or from your own phone. Usually it's the easiest way to order — once you know the words.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <span class="pill">TABLET AT YOUR TABLE</span>
+      <ol class="steps" style="margin-top:3mm">
+        <li><b>Find the language button</b>Look for EN, English, 言語 or a globe icon.</li>
+        <li><b>Add items to your order</b>Choose quantity, then add.</li>
+        <li><b>Confirm the order</b>Press 注文する or 注文確定. <span class="kicker">Nothing arriving? You probably didn't confirm.</span></li>
+      </ol>
+    </div>
+    <div class="card">
+      <span class="pill">QR CODE ON THE TABLE</span>
+      <ol class="steps" style="margin-top:3mm">
+        <li><b>Scan the code</b>with your phone camera. The menu opens in your browser.</li>
+        <li><b>Order from your phone</b>Your order history stays on the page.</li>
+        <li><b>Check how to pay</b>Some shops take payment on the phone; most still ask you to pay at the register.</li>
+      </ol>
+    </div>
+  </div>
+
+  <h2 style="margin-top:7mm">Words you'll see on screen</h2>
+  <table class="words">
+    <tr><th>On screen</th><th>Say</th><th>Means</th><th>On screen</th><th>Say</th><th>Means</th></tr>
+    <tr><td class="jpw">注文</td><td class="rom">chūmon</td><td>Order</td><td class="jpw">確定</td><td class="rom">kakutei</td><td>Confirm</td></tr>
+    <tr><td class="jpw">追加</td><td class="rom">tsuika</td><td>Add more</td><td class="jpw">取消</td><td class="rom">torikeshi</td><td>Cancel</td></tr>
+    <tr><td class="jpw">注文履歴</td><td class="rom">chūmon rireki</td><td>Order history</td><td class="jpw">戻る</td><td class="rom">modoru</td><td>Back</td></tr>
+    <tr><td class="jpw">店員呼出</td><td class="rom">ten'in yobidashi</td><td>Call staff</td><td class="jpw">お会計</td><td class="rom">okaikei</td><td>The bill / check</td></tr>
+  </table>
+  <div class="note cream" style="margin-top:6mm">
+    <p><span class="kicker">Tip:</span> before you leave the table, press <span class="jp" style="font-weight:700">お会計</span> if the screen has it. It tells staff you're ready — and some systems print or display what you owe.</p>
+  </div>
+  <div class="folio"><span>Part 3 · Tablet &amp; QR Ordering</span><span>6</span></div>
+</section>
+
+<!-- ============ 7. PART 4 IZAKAYA (1) ============ -->
+<section class="page">
+  <div class="part-tag">Part 4</div>
+  <h1 class="part">Izakaya</h1>
+  <div class="part-jp jp">居酒屋</div>
+  <p class="lede">A Japanese pub where the food matters as much as the drinks. Dishes are small, shared, and ordered a few at a time — the evening unfolds in rounds.</p>
+
+  <div class="note" style="margin-top:2mm">
+    <h3>The dish you didn't order: お通し <span class="small">(otōshi)</span></h3>
+    <p>Soon after you sit down, a small dish arrives that you didn't ask for. That's the <b>otoshi</b> — think of it as a <b>seat charge that comes with a snack</b>.</p>
+    <p>It's usually <b>about ¥300–500 per person</b>, but can be ¥1,000 or more at upscale places or in tourist areas. On the bill it may appear as "charge" or "seat fee" (<span class="jp">チャージ／席料</span>). It's normally not something you can refuse.</p>
+    <p>If it matters to you, ask before you sit: <span class="jp" style="font-weight:700">お通しはありますか？</span> <i>(Otōshi wa arimasu ka?)</i> — "Is there an otoshi charge?"</p>
+  </div>
+
+  <h2>How an evening works</h2>
+  <ol class="steps">
+    <li><b>Drinks come first</b>Staff will ask for your first drink almost immediately. "Toriaezu biiru" — "beer for now" — is the classic opener. You don't have to order food yet.</li>
+    <li><b>Order a few dishes, not everything</b>Two or three to start. More will follow.</li>
+    <li><b>Everything is shared</b>Dishes go in the middle of the table. Ask for small plates: <span class="jp" style="font-weight:700">取り皿</span> (torizara).</li>
+    <li><b>Order more in rounds</b>Call "sumimasen!" whenever you want the next round.</li>
+    <li><b>"Last order"</b>Staff announce <span class="jp" style="font-weight:700">ラストオーダー</span> before closing — your final chance to add anything.</li>
+  </ol>
+  <div class="folio"><span>Part 4 · Izakaya</span><span>7</span></div>
+</section>
+
+<!-- ============ 8. PART 4 IZAKAYA (2) ============ -->
+<section class="page">
+  <div class="part-tag">Part 4 · continued</div>
+  <h1 class="part">The Izakaya Menu</h1>
+  <div class="part-jp jp">居酒屋のメニュー</div>
+
+  <div class="grid2" style="gap:7mm">
+    <div>
+      <h2 style="margin-top:0">Drinks</h2>
+      <table class="words">
+        <tr><th>Menu</th><th>Say</th><th>Means</th></tr>
+        <tr><td class="jpw">生ビール</td><td class="rom">nama biiru</td><td>Draft beer</td></tr>
+        <tr><td class="jpw">ハイボール</td><td class="rom">haibōru</td><td>Whisky &amp; soda</td></tr>
+        <tr><td class="jpw">サワー</td><td class="rom">sawā</td><td>Fruit shōchū soda</td></tr>
+        <tr><td class="jpw">日本酒</td><td class="rom">nihonshu</td><td>Sake</td></tr>
+        <tr><td class="jpw">ソフトドリンク</td><td class="rom">sofuto dorinku</td><td>Non-alcoholic</td></tr>
+      </table>
+    </div>
+    <div>
+      <h2 style="margin-top:0">Food</h2>
+      <table class="words">
+        <tr><th>Menu</th><th>Say</th><th>Means</th></tr>
+        <tr><td class="jpw">枝豆</td><td class="rom">edamame</td><td>Salted soybeans</td></tr>
+        <tr><td class="jpw">焼き鳥</td><td class="rom">yakitori</td><td>Grilled chicken skewers</td></tr>
+        <tr><td class="jpw">唐揚げ</td><td class="rom">karaage</td><td>Fried chicken</td></tr>
+        <tr><td class="jpw">刺身</td><td class="rom">sashimi</td><td>Sliced raw fish</td></tr>
+        <tr><td class="jpw">だし巻き玉子</td><td class="rom">dashimaki tamago</td><td>Rolled omelette</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:7mm">
+    <div class="note blue" style="margin:0">
+      <h3>飲み放題 <span class="small">(nomihōdai)</span> — all you can drink</h3>
+      <p>A fixed price for unlimited drinks within a time limit, often 90–120 minutes. Many places ask everyone at the table to take it if one person does. Ask the time limit and the last-order time.</p>
+    </div>
+    <div class="note cream" style="margin:0">
+      <h3>〆 <span class="small">(shime)</span> — the finisher</h3>
+      <p>Many people end the night with something simple — rice, noodles or <i>ochazuke</i> (tea poured over rice). If you see 〆 on the menu, that's the section.</p>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:6mm">
+    <p><span class="kicker">Reading a menu with no English?</span> Many izakaya have a handwritten board of today's specials. Photograph it and run it through your phone's translator — or simply point at what the next table is eating and show card&nbsp;6.</p>
+  </div>
+  <div class="folio"><span>Part 4 · Izakaya</span><span>8</span></div>
+</section>
+
+<!-- ============ 9. PART 5 SUSHI (1) ============ -->
+<section class="page">
+  <div class="part-tag">Part 5</div>
+  <h1 class="part">Conveyor-Belt Sushi</h1>
+  <div class="part-jp jp">回転寿司</div>
+  <p class="lede">Cheap, fun and fast — and the big chains are built for people who don't speak Japanese. Here's what to expect from the door to the bill.</p>
+
+  <ol class="steps">
+    <li><b>Check in at the entrance</b>Many chains have a reception machine. Choose table or counter and the number of people; take the ticket and wait until your number appears on the screen.</li>
+    <li><b>Switch the touch panel to English</b>Each seat has a screen. Most big chains offer English and other languages.</li>
+    <li><b>Order on the panel</b>What you order arrives on a separate lane or a marked plate, and the screen tells you when it's yours. <b>Take only your own order.</b></li>
+    <li><b>Or take plates from the belt</b>At shops where sushi still circulates, you can take any plate that passes.</li>
+    <li><b>Ask for the bill on the panel</b>Press the check button (<span class="jp" style="font-weight:700">お会計</span>), then pay at the register on the way out.</li>
+  </ol>
+
+  <div class="grid2" style="margin-top:4mm">
+    <div class="note" style="margin:0">
+      <h3>Never put a plate back</h3>
+      <p>Once a plate is off the belt, it's yours. Stack your empty plates — some chains have a slot at your seat to drop them into, which counts them for you.</p>
+    </div>
+    <div class="note blue" style="margin:0">
+      <h3>How much is a plate?</h3>
+      <p>Some chains price by <b>plate colour</b> (there's a chart on the wall or panel); others are mostly flat-price. Basic plates start around ¥110 at the big chains.</p>
+    </div>
+  </div>
+  <div class="folio"><span>Part 5 · Conveyor-Belt Sushi</span><span>9</span></div>
+</section>
+
+<!-- ============ 10. PART 5 SUSHI (2) ============ -->
+<section class="page">
+  <div class="part-tag">Part 5 · continued</div>
+  <h1 class="part">At Your Seat</h1>
+  <div class="part-jp jp">席にあるもの</div>
+
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6mm; align-items:start">
+    <div class="card">
+      <h3>Make your own green tea</h3>
+      <svg viewBox="0 0 300 120" width="100%" aria-label="Green tea steps">
+        <g font-size="12" text-anchor="middle" font-weight="700" fill="#1d2433">
+          <rect x="10" y="20" width="70" height="56" rx="10" fill="#e6ebf3"/>
+          <text x="45" y="45">粉茶</text><text x="45" y="62" font-size="10" font-weight="400">powder</text>
+          <text x="104" y="54" font-size="20" fill="#c8432b">→</text>
+          <rect x="120" y="20" width="70" height="56" rx="10" fill="#e6ebf3"/>
+          <text x="155" y="45">cup</text><text x="155" y="62" font-size="10" font-weight="400">1 spoon</text>
+          <text x="214" y="54" font-size="20" fill="#c8432b">→</text>
+          <rect x="230" y="20" width="62" height="56" rx="10" fill="#fbe9e4"/>
+          <text x="261" y="45">お湯</text><text x="261" y="62" font-size="10" font-weight="400">hot tap</text>
+        </g>
+        <text x="150" y="104" font-size="11" text-anchor="middle" fill="#5f6673">Push the cup against the tap at your seat · very hot</text>
+      </svg>
+      <p class="small" style="margin-top:2mm">The green powder in the container on your table is tea (<span class="jp">粉茶</span>, kona-cha) — not wasabi.</p>
+    </div>
+    <div class="card">
+      <h3>Free at your seat</h3>
+      <table class="words">
+        <tr><td class="jpw">ガリ</td><td class="rom">gari</td><td>Pickled ginger — between bites</td></tr>
+        <tr><td class="jpw">醤油</td><td class="rom">shōyu</td><td>Soy sauce</td></tr>
+        <tr><td class="jpw">わさび</td><td class="rom">wasabi</td><td>Often in small packets</td></tr>
+      </table>
+      <p class="small" style="margin-top:2.4mm">At many big chains, sushi comes <b>without wasabi</b> so children can eat it. Add your own from the packets.</p>
+    </div>
+  </div>
+
+  <h2 style="margin-top:7mm">Sushi words</h2>
+  <table class="words">
+    <tr><th>Word</th><th>Say</th><th>Means</th><th>Word</th><th>Say</th><th>Means</th></tr>
+    <tr><td class="jpw">さび抜き</td><td class="rom">sabinuki</td><td>No wasabi</td><td class="jpw">炙り</td><td class="rom">aburi</td><td>Lightly seared</td></tr>
+    <tr><td class="jpw">軍艦</td><td class="rom">gunkan</td><td>Seaweed-wrapped, topped</td><td class="jpw">一貫</td><td class="rom">ikkan</td><td>One piece</td></tr>
+    <tr><td class="jpw">まぐろ</td><td class="rom">maguro</td><td>Tuna</td><td class="jpw">サーモン</td><td class="rom">sāmon</td><td>Salmon</td></tr>
+    <tr><td class="jpw">えび</td><td class="rom">ebi</td><td>Shrimp</td><td class="jpw">いか</td><td class="rom">ika</td><td>Squid</td></tr>
+    <tr><td class="jpw">玉子</td><td class="rom">tamago</td><td>Sweet omelette</td><td class="jpw">茶碗蒸し</td><td class="rom">chawanmushi</td><td>Savoury egg custard</td></tr>
+  </table>
+  <div class="folio"><span>Part 5 · Conveyor-Belt Sushi</span><span>10</span></div>
+</section>
+
+<!-- ============ 11. PART 6 PAYING ============ -->
+<section class="page">
+  <div class="part-tag">Part 6</div>
+  <h1 class="part">Paying &amp; Leaving</h1>
+  <div class="part-jp jp">お会計</div>
+  <p class="lede">Paying is simple once you know one rule: look for the bill on your table.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Bill on the table → pay at the register</h3>
+      <p>If staff left a slip on your table (often in a holder), take it to the register by the exit when you're done.</p>
+    </div>
+    <div class="card">
+      <h3>No bill → ask at your table</h3>
+      <p>Say <b>"Okaikei onegaishimasu"</b> (card 14). Staff will bring the bill or point you to the register.</p>
+    </div>
+    <div class="card">
+      <h3>Use the small tray</h3>
+      <p>At the register there's usually a small tray. Place your cash or card on it rather than handing it over directly. Your change comes back on the tray, too.</p>
+    </div>
+    <div class="card">
+      <h3>Splitting the bill</h3>
+      <p>Ask <b>"Betsubetsu de onegaishimasu"</b> (card 16). Many casual places will split it; when it's busy, some prefer a single payment.</p>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:6mm">
+    <h3>The words that make staff smile</h3>
+    <p>On your way out, say <span class="jp" style="font-weight:700; font-size:12pt">ごちそうさまでした</span> <i>(gochisōsama deshita)</i> — "thank you for the meal." It's what Japanese customers say, and staff genuinely appreciate hearing it from visitors.</p>
+  </div>
+  <div class="note blue">
+    <p><span class="kicker" style="color:var(--indigo)">Reminder:</span> no tip — not on the table, not in the tray. The price you see is the price you pay.</p>
+  </div>
+  <div class="folio"><span>Part 6 · Paying &amp; Leaving</span><span>11</span></div>
+</section>
+
+<!-- ============ 12. PART 7 ETIQUETTE ============ -->
+<section class="page">
+  <div class="part-tag">Part 7</div>
+  <h1 class="part">Etiquette That Actually Matters</h1>
+  <div class="part-jp jp">本当に大事なマナーだけ</div>
+  <p class="lede">Visitors often worry far too much about "doing it wrong." Here's the short list that matters — and the longer list you can stop worrying about.</p>
+
+  <div class="grid2" style="gap:6mm">
+    <div>
+      <h2 style="margin-top:0; color:var(--red)">Worth getting right</h2>
+      <div class="card" style="margin-bottom:3mm"><h3>Chopsticks: two things to avoid</h3><p>Don't pass food from your chopsticks to someone else's, and don't stand chopsticks upright in rice. Both are associated with funerals.</p></div>
+      <div class="card" style="margin-bottom:3mm"><h3>Wait to be seated</h3><p>Don't take an empty table on your own unless staff gesture for you to sit anywhere.</p></div>
+      <div class="card"><h3>Eating while walking</h3><p>In some busy tourist areas it's discouraged. If you buy street food, eat it by the stall where you bought it.</p></div>
+    </div>
+    <div>
+      <h2 style="margin-top:0; color:var(--indigo)">You can relax about</h2>
+      <div class="card" style="margin-bottom:3mm"><h3>Slurping noodles</h3><p>Perfectly normal. Nobody will think twice.</p></div>
+      <div class="card" style="margin-bottom:3mm"><h3>Lifting your bowl</h3><p>Holding a rice or soup bowl up near your mouth is the normal way to eat.</p></div>
+      <div class="card"><h3>Not speaking Japanese</h3><p>Nobody expects you to. A smile, pointing and the cards in this guide are more than enough.</p></div>
+    </div>
+  </div>
+  <div class="folio"><span>Part 7 · Etiquette</span><span>12</span></div>
+</section>
+
+__CARD_PAGES__
+
+<!-- ============ STAFF SAYS ============ -->
+<section class="page">
+  <div class="part-tag">Part 8 · continued</div>
+  <h1 class="part">What Staff Will Say to You</h1>
+  <div class="part-jp jp">店員さんがよく言うこと</div>
+  <p class="lede">You don't need to answer in Japanese — just recognising these will tell you what's happening.</p>
+
+  <table class="words" style="font-size:10.4pt">
+    <tr><th>You'll hear</th><th>Sounds like</th><th>Means</th><th>What to do</th></tr>
+    <tr><td class="jpw">いらっしゃいませ</td><td class="rom">irasshaimase</td><td>Welcome!</td><td>Nothing — a nod or smile is perfect</td></tr>
+    <tr><td class="jpw">何名様ですか？</td><td class="rom">nan-mei-sama desu ka?</td><td>How many people?</td><td>Show fingers, or card 1</td></tr>
+    <tr><td class="jpw">少々お待ちください</td><td class="rom">shōshō omachi kudasai</td><td>Please wait a moment</td><td>Wait near the entrance</td></tr>
+    <tr><td class="jpw">お決まりですか？</td><td class="rom">okimari desu ka?</td><td>Ready to order?</td><td>Point and show card 6</td></tr>
+    <tr><td class="jpw">満席です</td><td class="rom">manseki desu</td><td>We're full</td><td>Ask how long, or try elsewhere</td></tr>
+    <tr><td class="jpw">お通しです</td><td class="rom">otōshi desu</td><td>Your table-charge appetizer</td><td>Enjoy it (see Part 4)</td></tr>
+    <tr><td class="jpw">ラストオーダーです</td><td class="rom">rasuto ōdā desu</td><td>Last orders</td><td>Add anything final now</td></tr>
+    <tr><td class="jpw">ありがとうございました</td><td class="rom">arigatō gozaimashita</td><td>Thank you (as you leave)</td><td>"Gochisōsama deshita!"</td></tr>
+  </table>
+  <div class="folio"><span>Part 8 · Phrase Cards</span><span>16</span></div>
+</section>
+
+<!-- ============ CHEAT SHEET ============ -->
+<section class="page">
+  <div class="part-tag">✂ Print &amp; keep</div>
+  <h1 class="part">One-Page Cheat Sheet</h1>
+  <div class="part-jp jp">これ1枚で大丈夫</div>
+  <div class="cheat">
+    <table>
+      <tr><td class="j">2名です。</td><td class="r">Ni-mei desu.</td><td>Table for two.</td></tr>
+      <tr><td class="j">英語のメニューはありますか？</td><td class="r">Eigo no menyū wa arimasu ka?</td><td>English menu?</td></tr>
+      <tr><td class="j">すみません！</td><td class="r">Sumimasen!</td><td>Excuse me! (call staff)</td></tr>
+      <tr><td class="j">これをください。</td><td class="r">Kore o kudasai.</td><td>This one, please.</td></tr>
+      <tr><td class="j">おすすめは何ですか？</td><td class="r">Osusume wa nan desu ka?</td><td>What do you recommend?</td></tr>
+      <tr><td class="j">お水をください。</td><td class="r">Omizu o kudasai.</td><td>Water, please.</td></tr>
+      <tr><td class="j">お会計お願いします。</td><td class="r">Okaikei onegaishimasu.</td><td>Check, please.</td></tr>
+      <tr><td class="j">カードは使えますか？</td><td class="r">Kādo wa tsukaemasu ka?</td><td>Can I pay by card?</td></tr>
+      <tr><td class="j">ごちそうさまでした。</td><td class="r">Gochisōsama deshita.</td><td>Thank you for the meal.</td></tr>
+    </table>
+    <h3 style="margin-top:5mm">Remember</h3>
+    <div class="rules">
+      <div><b>No tipping.</b> Ever.</div>
+      <div><b>Ticket machine?</b> Pay before you sit.</div>
+      <div><b>Bring ¥1,000 notes</b> for machines.</div>
+      <div><b>Otoshi</b> = seat charge with a snack.</div>
+      <div><b>Never</b> put a sushi plate back.</div>
+      <div><b>"Futsū"</b> is always a safe answer.</div>
+      <div><b>Bill on the table?</b> Pay at the register.</div>
+      <div><b>Water and tea</b> are free.</div>
+    </div>
+  </div>
+  <div class="folio"><span>Cheat Sheet</span><span>17</span></div>
+</section>
+
+<!-- ============ BACK ============ -->
+<section class="page">
+  <div class="part-tag">About this guide</div>
+  <h1 class="part">Enjoy every meal.</h1>
+  <div class="part-jp jp">いってらっしゃい</div>
+
+  <div class="card" style="margin-top:4mm">
+    <h3>How this guide was made</h3>
+    <p>Written and checked by a native Japanese speaker living in Japan. AI tools assisted with drafting, layout, diagrams and English editing. Every Japanese phrase was reviewed by a native speaker.</p>
+  </div>
+  <div class="card" style="margin-top:4mm">
+    <h3>Please note</h3>
+    <p>This guide explains how ordering generally works in Japan. It does not recommend specific restaurants, and it is not affiliated with any restaurant or chain. Systems, prices and rules vary from shop to shop and change over time; prices mentioned are typical examples as of 2025–2026.</p>
+  </div>
+  <div class="card" style="margin-top:4mm">
+    <h3>Personal use</h3>
+    <p>This file is for your personal use. Please don't resell, share or redistribute it. Printing copies for your own travel group is fine.</p>
+  </div>
+  <div class="note cream" style="margin-top:8mm">
+    <p>Found this useful? A short review helps other travellers find it — and tells me which guide to make next.</p>
+  </div>
+  <div class="folio"><span>__SHOP__</span><span>18</span></div>
+</section>
+
+</body>
+</html>
