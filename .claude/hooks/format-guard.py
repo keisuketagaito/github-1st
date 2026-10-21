@@ -14,7 +14,11 @@ import sys
 
 IM_TRIGGERS = (
     '概要書', '企業概要書', 'ＩＭ', 'インフォメーションメモランダム',
-    'Information Memorandum', '案件概要書', 'ノンネーム',
+    'Information Memorandum', '案件概要書',
+)
+NN_TRIGGERS = (
+    'ノンネーム', 'ノンネームシート', 'ノンネーム資料', '匿名シート',
+    'ティーザー', 'Teaser', '初期打診',
 )
 VR_TRIGGERS = (
     '評価書', '株価評価', 'バリュエーション', 'Valuation', 'ＶＲ',
@@ -69,6 +73,31 @@ VR_REMINDER = """\
 </vr-format-guard>"""
 
 
+NN_REMINDER = """\
+<nn-format-guard>
+このリクエストはノンネームシート（買手候補への初期打診資料）に関するものです。
+企業概要書（IM）とは別物です。着手前に必ず次を守ってください。
+
+1. `.claude/skills/ma-deal-docs/references/nonname.md` を読む。
+2. `.claude/skills/ma-deal-docs/assets/ノンネームシート_テンプレート.pptx` を
+   複製して作る。白紙から組み立てることは禁止。
+   `from nn_builder import *` → `prs = open_nn_template()` が1行目。
+   A4縦1枚。構成は 事業内容／特徴・強み／補足事項／本情報の取扱について。
+3. **社名が特定される情報は一切書かない。**
+   店名・商標名・代表者名・受賞名（「そば百名店」等の固有の賞・媒体名）・
+   市区町村名・固有の取引先名・特徴的すぎる固有の製法名は禁止。
+   売上高と従業員数はレンジで示す（「1億円未満」「5名未満」）。
+4. 「本情報の取扱について」の定型文は削除も改変もしない。
+5. 数値は案件マスターを唯一のソースとし、レンジへ丸めるのはパワポ側で行う。
+6. 内部限情報（価格の温度感、報酬の取決め、他社仲介の併走、社内進行管理）は
+   絶対に載せない。希望譲渡価額は原則「応相談」。
+7. 文章量を変えたら `place_table()` で行高を取り直す。テンプレートの行高は
+   前案件の文字量のままなので、放置すると行が重なり下の見出しを押し潰す。
+8. 納品前に `check_anonymity()`・validate.py・PDFレンダリングの目視を通す。
+   ファイル名にも社名を入れない（買手へそのまま送れる名前にする）。
+</nn-format-guard>"""
+
+
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
@@ -77,7 +106,10 @@ def main() -> int:
     prompt = payload.get('prompt') or ''
     im_hit = any(t in prompt for t in IM_TRIGGERS) or bool(IM_RE.search(prompt))
     vr_hit = any(t in prompt for t in VR_TRIGGERS)
+    nn_hit = any(t in prompt for t in NN_TRIGGERS)
     out = []
+    if nn_hit:
+        out.append(NN_REMINDER)
     if im_hit:
         out.append(IM_REMINDER)
     if vr_hit:
