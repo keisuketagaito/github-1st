@@ -26,6 +26,7 @@ import tempfile
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
+from pptx.enum.dml import MSO_LINE_DASH_STYLE
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.oxml.ns import qn
@@ -687,6 +688,44 @@ def photo_tile(slide, path, x, y, w, h, caption=None, cap_size=8,
         textbox(slide, x, y + h + 0.04, w, 0.20, caption,
                 size=cap_size, color=NOTE, font=JP)
     return pic
+
+
+def photo_slot(slide, path, x, y, w, h, caption=None, label='写真',
+               cap_size=8):
+    """写真の差込み枠。ファイルがあれば写真を、無ければ枠と見出しを描く。
+
+    `photo_tile()` は無ければ何も描かないが、こちらは**撮影・受領の予定がある枠**を
+    資料上に明示したいときに使う（売主に撮影を依頼している、等）。
+    枠が残ったまま買手に出すことはできないため、納品前に必ず埋めること。
+    `check_photo_slots()` で未充足の枠を検出できる。
+    """
+    if path and os.path.exists(path):
+        return photo_tile(slide, path, x, y, w, h, caption, cap_size)
+    box = rect(slide, x, y, w, h, fill=PALE, line=BLUE, lw=1.0)
+    box.line.dash_style = MSO_LINE_DASH_STYLE.DASH
+    textbox(slide, x, y + h / 2 - 0.22, w, 0.26, label, size=12, bold=True,
+            color=BLUE, font=JP, align=PP_ALIGN.CENTER)
+    textbox(slide, x, y + h / 2 + 0.06, w, 0.22, '（受領後に差込み）', size=8.5,
+            color=NOTE, font=JP, align=PP_ALIGN.CENTER)
+    if caption:
+        textbox(slide, x, y + h + 0.04, w, 0.20, caption,
+                size=cap_size, color=NOTE, font=JP)
+    return None
+
+
+def check_photo_slots(prs) -> list:
+    """未充足の写真枠（「（受領後に差込み）」の文字）が残る頁を返す。納品前に通す。"""
+    out = []
+    for i, slide in enumerate(prs.slides, 1):
+        def walk(shapes):
+            for sh in shapes:
+                if sh.shape_type == 6:
+                    walk(sh.shapes)
+                    continue
+                if sh.has_text_frame and '受領後に差込み' in sh.text_frame.text:
+                    out.append(i)
+        walk(slide.shapes)
+    return sorted(set(out))
 
 
 def photo_strip(slide, items, x, y, w, h, gap=0.14, cap_size=8):
