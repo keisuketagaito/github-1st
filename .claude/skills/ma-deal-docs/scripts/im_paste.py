@@ -154,9 +154,10 @@ def fmt_value(v, nf):
         sec, x, neg = secs[0], v, v < 0
         x = abs(x)
     sec = re.sub(r'\[[^\]]*\]', '', sec)
+    sec = re.sub(r'[_*].', '', sec)          # 「_)」（幅の調整）・「*x」（繰り返し）は文字にしない
     m_ = re.search(r'[#0][#0,\.]*%?', sec)
     if not m_:
-        return sec.replace('"', '')
+        return sec.replace('"', '').replace('\\', '')
     tok = m_.group(0)
     pctf = tok.endswith('%')
     core = tok.rstrip('%')
@@ -171,21 +172,69 @@ def fmt_value(v, nf):
     if neg and float(q) != 0:
         s = '-' + s
     pre, post = sec[:m_.start()], sec[m_.end():]
-    return (pre + s + ('%' if pctf else '') + post).replace('"', '')
+    return (pre + s + ('%' if pctf else '') + post).replace('"', '').replace('\\', '')
 
 
-def _rgb(color):
-    if color is None or color.type != 'rgb' or not isinstance(color.rgb, str):
+_THEME = {}   # id(workbook) -> テーマ色（Excelのテーマ番号順：lt1, dk1, lt2, dk2, accent1〜6, hlink, folHlink）
+
+
+def _theme_colors(wb):
+    """ブックのテーマ色を読む（公式マスターは見出しの白字・淡青の塗り等をテーマ色で持つ）。"""
+    if id(wb) in _THEME:
+        return _THEME[id(wb)]
+    cols = ['FFFFFF', '000000', 'E7E6E6', '44546A', '4472C4', 'ED7D31', 'A5A5A5', 'FFC000', '5B9BD5', '70AD47', '0563C1', '954F72']
+    raw = getattr(wb, 'loaded_theme', None)
+    if raw:
+        a = '{http://schemas.openxmlformats.org/drawingml/2006/main}'
+        cs = etree.fromstring(raw).find(f'.//{a}clrScheme')
+        if cs is not None:
+            def val(tag):
+                e = cs.find(a + tag)
+                if e is None or len(e) == 0:
+                    return None
+                c = e[0]
+                return (c.get('lastClr') or c.get('val') or '').upper()[-6:] or None
+            order = ['lt1', 'dk1', 'lt2', 'dk2', 'accent1', 'accent2', 'accent3', 'accent4', 'accent5', 'accent6', 'hlink', 'folHlink']
+            cols = [val(t) or d for t, d in zip(order, cols)]
+    _THEME[id(wb)] = cols
+    return cols
+
+
+def _rgb(color, wb=None):
+    """openpyxlの色 → 'RRGGBB'。rgb指定に加え、テーマ色（＋濃淡tint）も解決する。"""
+    if color is None:
         return None
-    return color.rgb[-6:]
+    if color.type == 'rgb' and isinstance(color.rgb, str):
+        return color.rgb[-6:]
+    if color.type == 'theme' and wb is not None and isinstance(color.theme, int):
+        cols = _theme_colors(wb)
+        if color.theme >= len(cols):
+            return None
+        base = [int(cols[color.theme][i:i + 2], 16) for i in (0, 2, 4)]
+        t = float(color.tint or 0)
+        if t < 0:
+            base = [round(c * (1 + t)) for c in base]
+        elif t > 0:
+            base = [round(c + (255 - c) * t) for c in base]
+        return ''.join(f'{c:02X}' for c in base)
+    return None
 
 
-def _ln(tcPr, tag, side):
+def _hidden_cols(ws):
+    """非表示の列番号の集合（列幅の定義は min〜max の範囲で持たれることがある）。"""
+    out = set()
+    for dim in ws.column_dimensions.values():
+        if dim.hidden and dim.min and dim.max:
+            out.update(range(dim.min, dim.max + 1))
+    return out
+
+
+def _ln(tcPr, tag, side, wb=None):
     ln = etree.SubElement(tcPr, qn(tag))
     if side is not None and side.style:
         ln.set('w', str(_BORDER_W.get(side.style, 6350)))
         sf = etree.SubElement(ln, qn('a:solidFill'))
-        etree.SubElement(sf, qn('a:srgbClr'), val=_rgb(side.color) or '000000')
+        etree.SubElement(sf, qn('a:srgbClr'), val=_rgb(side.color, wb) or '000000')
     else:
         ln.set('w', '6350')
         etree.SubElement(ln, qn('a:noFill'))
@@ -193,12 +242,16 @@ def _ln(tcPr, tag, side):
 
 def paste_range(slide, wb, ref, x, y, w=None, hscale=1.0, fscale=1.0, margin=0.04):
     """案件マスターの範囲（'シート!B4:F25'）を書式ごとパワポの表にする。
-    列幅・行高・結合・塗り・罫線・フォント・表示形式・配置をExcelから引き継ぐ。w指定時は列幅を比例調整。"""
+    列幅・行高・結合・塗り・罫線・フォント・表示形式・配置をExcelから引き継ぐ。w指定時は列幅を比例調整。
+    非表示の行・列は貼らない（公式マスターの「IMに貼るときは非表示」の運用。1期目の空列・空行もこれで除く）。
+    公式マスター（12pt基準）は fscale/hscale で縮めて貼る（目安：ハイライト0.875、詳細表0.75）。"""
     from openpyxl.utils import range_boundaries, get_column_letter
     sheet, rng = ref.split('!')
     ws = wb[sheet.strip("'")]
     c1, r1, c2, r2 = range_boundaries(rng)
-    cols = list(range(c1, c2 + 1)); rows_ = list(range(r1, r2 + 1))
+    hc = _hidden_cols(ws)
+    cols = [c for c in range(c1, c2 + 1) if c not in hc]
+    rows_ = [r for r in range(r1, r2 + 1) if not ws.row_dimensions[r].hidden]
     cw_ = [((ws.column_dimensions[get_column_letter(c)].width or 8.43) * 7 + 5) / 96 for c in cols]
     k_ = (w / sum(cw_)) if w else 1.0
     cw_ = [c * k_ for c in cw_]
@@ -215,9 +268,13 @@ def paste_range(slide, wb, ref, x, y, w=None, hscale=1.0, fscale=1.0, margin=0.0
         tbl.columns[j].width = Inches(c)
     for i, h in enumerate(rh_):
         tbl.rows[i].height = Inches(h)
+    ri = {r: i for i, r in enumerate(rows_)}; ci = {c: j for j, c in enumerate(cols)}
     for mr in ws.merged_cells.ranges:
         if mr.min_row >= r1 and mr.max_row <= r2 and mr.min_col >= c1 and mr.max_col <= c2:
-            tbl.cell(mr.min_row - r1, mr.min_col - c1).merge(tbl.cell(mr.max_row - r1, mr.max_col - c1))
+            vr = [r for r in range(mr.min_row, mr.max_row + 1) if r in ri]
+            vc = [c for c in range(mr.min_col, mr.max_col + 1) if c in ci]
+            if vr and vc and (len(vr) > 1 or len(vc) > 1):
+                tbl.cell(ri[vr[0]], ci[vc[0]]).merge(tbl.cell(ri[vr[-1]], ci[vc[-1]]))
     for i, r in enumerate(rows_):
         for j, c in enumerate(cols):
             xc = ws.cell(r, c)
@@ -236,7 +293,7 @@ def paste_range(slide, wb, ref, x, y, w=None, hscale=1.0, fscale=1.0, margin=0.0
                 txBody.remove(p)
             latin = fnt.name or JP
             ea = '游ゴシック Medium' if latin == NUM else JP
-            color = _rgb(fnt.color) or '000000'
+            color = _rgb(fnt.color, wb) or '000000'
             if not txt_:   # 空セルは行高を押し広げないよう小さいフォントで
                 size = min(size, (ws.row_dimensions[r].height or 15) * 0.6)
             for line_ in (txt_.split('\n') if txt_ else ['']):
@@ -261,8 +318,8 @@ def paste_range(slide, wb, ref, x, y, w=None, hscale=1.0, fscale=1.0, margin=0.0
             tcPr.set('marL', str(int(mi))); tcPr.set('marR', str(int(mi))); tcPr.set('marT', '0'); tcPr.set('marB', '0')
             tcPr.set('anchor', 'ctr')
             b = xc.border
-            _ln(tcPr, 'a:lnL', b.left); _ln(tcPr, 'a:lnR', b.right); _ln(tcPr, 'a:lnT', b.top); _ln(tcPr, 'a:lnB', b.bottom)
-            fill = _rgb(xc.fill.fgColor) if xc.fill is not None and xc.fill.fill_type == 'solid' else None
+            _ln(tcPr, 'a:lnL', b.left, wb); _ln(tcPr, 'a:lnR', b.right, wb); _ln(tcPr, 'a:lnT', b.top, wb); _ln(tcPr, 'a:lnB', b.bottom, wb)
+            fill = _rgb(xc.fill.fgColor, wb) if xc.fill is not None and xc.fill.fill_type == 'solid' else None
             if fill:
                 sf = etree.SubElement(tcPr, qn('a:solidFill')); etree.SubElement(sf, qn('a:srgbClr'), val=fill)
             else:
@@ -369,14 +426,14 @@ def set_box(sh, lines, size=None, size1=None):
     return sh
 
 
-def range_height(wb, ref, upto_row=None):
-    """貼付範囲の高さ（インチ）。upto_row指定時は範囲先頭からその行の直前まで。"""
+def range_height(wb, ref, upto_row=None, hscale=1.0):
+    """貼付範囲の高さ（インチ。非表示行を除く）。upto_row指定時は範囲先頭からその行の直前まで。hscaleは貼付時と同じ値。"""
     from openpyxl.utils import range_boundaries
     sheet, rng = ref.split('!')
     ws = wb[sheet.strip("'")]
     c1, r1, c2, r2 = range_boundaries(rng)
     end = upto_row if upto_row else r2 + 1
-    return sum((ws.row_dimensions[r].height or 15) / 72 for r in range(r1, end))
+    return sum((ws.row_dimensions[r].height or 15) / 72 * hscale for r in range(r1, end) if not ws.row_dimensions[r].hidden)
 
 
 
@@ -400,13 +457,13 @@ def place(sh, x, y, w=None, h=None):
 
 
 def paste_ref(wb, key):
-    """マスターの「ルール」シートではなく、各IMシート A2 の貼付範囲表記から範囲を引く補助。
+    """マスターの「ルール」シートではなく、各IMシート A1/A2 の貼付範囲表記から範囲を引く補助。
     例：paste_ref(wb, 'PLハイライト') -> 'PLハイライト!B4:F25'（A2に複数範囲がある場合は先頭）"""
-    a2 = wb[key]['A2'].value or ''
-    m_ = re.search(r'([A-Z]+\d+:[A-Z]+\d+)', a2)
-    if not m_:
-        raise KeyError(f'{key}!A2 に貼付範囲の表記がない')
-    return f'{key}!{m_.group(1)}'
+    for a in ('A1', 'A2'):          # 公式マスター（行2が見出し）はA1、追加シートはA2に表記
+        m_ = re.search(r'貼付範囲\s*([A-Z]+\d+:[A-Z]+\d+)', str(wb[key][a].value or ''))
+        if m_:
+            return f"'{key}'!{m_.group(1)}" if ' ' in key else f'{key}!{m_.group(1)}'
+    raise KeyError(f'{key}!A1/A2 に貼付範囲の表記がない')
 
 
 def remove_watermark(prs, marker='御中'):

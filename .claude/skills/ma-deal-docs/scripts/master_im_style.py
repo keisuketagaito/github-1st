@@ -116,10 +116,12 @@ def row(ws, r, c0, vals, kinds, fmts=None, size=None, height=None, border='std',
         ws.row_dimensions[r].height = height
 
 
-def paste(ws, rng, page, registry=None, key=None):
-    """貼付範囲を登録する。A2に赤字で「貼付範囲 → 概要書のページ」を明記。registry(list)に (シート, 範囲, ページ) を追加。"""
-    ws['A2'] = f'■ 貼付範囲 {rng} → 企業概要書「{page}」（範囲をコピーしてパワポに貼り付け。数字はここを直す）'
-    ws['A2'].font = Font(name=NOTE, size=9, color='C00000')
+def paste(ws, rng, page, registry=None, key=None, cell='A2'):
+    """貼付範囲を登録する。A2に赤字で「貼付範囲 → 概要書のページ」を明記。registry(list)に (シート, 範囲, ページ) を追加。
+    公式マスターのテンプレートシート（行2が見出し）は cell='A1' に書く。"""
+    ws[cell] = f'■ 貼付範囲 {rng} → 企業概要書「{page}」（範囲をコピーしてパワポに貼り付け。数字はここを直す）'
+    ws[cell].font = Font(name=NOTE, size=9, color='C00000')
+    ws[cell].alignment = Alignment(wrap_text=False)
     if registry is not None:
         registry.append((key or ws.title, f'{ws.title}!{rng}', page))
     return f'{ws.title}!{rng}'
@@ -141,3 +143,25 @@ def write_paste_index(ws, registry, start_row=13):
         ws.cell(r, 2, f'   {ref}　→　{pg}').font = Font(name=NUM, size=10)
         r += 1
     return r
+
+
+def ungroup_cols(ws, upto=40):
+    """公式マスターの列幅定義は C:G のように範囲でまとまっていることがある。
+    1列だけ非表示にすると範囲全体が消えるため、列ごとの定義に分解する（非表示にする前に呼ぶ）。"""
+    from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.dimensions import ColumnDimension
+    for key, dim in list(ws.column_dimensions.items()):
+        if dim.min and dim.max and dim.max > dim.min and dim.min <= upto:
+            w, hid = dim.width, dim.hidden
+            lo, hi = dim.min, min(dim.max, upto)
+            del ws.column_dimensions[key]
+            for i in range(lo, hi + 1):
+                c = get_column_letter(i)
+                ws.column_dimensions[c] = ColumnDimension(ws, index=c, width=w, hidden=hid)
+
+
+def hide_cols(ws, *cols):
+    """「IMに貼るときは非表示」の列（1期目・氏名等）を非表示にする。paste_range は非表示の列を貼らない。"""
+    ungroup_cols(ws)
+    for c in cols:
+        ws.column_dimensions[c].hidden = True
