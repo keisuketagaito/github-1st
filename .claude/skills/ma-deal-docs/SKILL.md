@@ -8,9 +8,9 @@ description: >
   「商流図」「組織図」「分割後BS」「会社分割スキーム」「ヒアリング項目」「不動産」「登記簿」「謄本」「固定資産税課税明細」
   「担保」「借地」「個人所有地の買取価格」「プロセスレター」「設備ページ」などと言ったとき、または決算書・案件マスター・
   概要書のファイルを添付して作成・修正・更新を依頼されたときは必ずこのスキルを参照してください。
-  概要書は「公式フォーマットの案件マスターを埋める → マスターの貼付範囲を当社テンプレート（assets/企業概要書_テンプレート.pptx）へ
+  概要書は「公式フォーマットの案件マスターを埋める → マスターの貼付範囲を当社テンプレート（assets/im_template.pptx）へ
   貼る → 全頁を描画して直す」の流れで作り、白紙から組み立てることは禁止です（品質基準：鳥塚案件・鶴岡中央青果261027）。
-  評価書は assets/株式価値評価書_テンプレート.pptx、ノンネームは assets/ノンネームシート_テンプレート.pptx を複製して作ります。
+  評価書は assets/vr_template.pptx、ノンネームは assets/nonname_template.pptx を複製して作ります。
   ノンネームシートは社名が特定されない書き方（店名・商標・代表者名・受賞名・市区町村名・取引先名を書かず、
   売上高と従業員数はレンジ）が最優先です。面談議事録を渡されて「概要書の更新箇所を指摘して」と言われた場合も同様です。
 ---
@@ -23,12 +23,12 @@ description: >
 
 | 成果物 | テンプレート（`assets/`） | 部品（`scripts/`） | 仕様書（`references/`） | 品質基準 |
 |---|---|---|---|---|
-| 案件マスター | `案件マスター_公式テンプレート.xlsx`（公式0925版・既知の不具合修正済み） | `master_im_style.py` `inject_cache.py` `xlsx_xml.py` | `master-sheets.md` `im-design.md` §7 | 鶴岡中央青果 261027 |
-| 企業概要書（IM） | `企業概要書_テンプレート.pptx` | `im_builder.py`（頁枠・部品）＋`im_paste.py`（表の貼付） | `im-design.md` `im-structure.md` `quality-checklist.md` | 鳥塚（水産養殖業／関西）・鶴岡中央青果 261027 |
-| 株式価値評価書（VR） | `株式価値評価書_テンプレート.pptx` | `vr_builder.py` | **`ma-valuation` スキル**（正本）＋`valuation.md` | カナリア（260729） |
-| ノンネームシート | `ノンネームシート_テンプレート.pptx`（A4縦1枚） | `nn_builder.py` | `nonname.md` | 鶴岡中央青果（261015） |
+| 案件マスター | `master_template.xlsx`（公式0925版・既知の不具合修正済み） | `master_im_style.py` `inject_cache.py` `xlsx_xml.py` | `master-sheets.md` `im-design.md` §7 | 鶴岡中央青果 261027 |
+| 企業概要書（IM） | `im_template.pptx` | `im_builder.py`（頁枠・部品）＋`im_paste.py`（表の貼付） | `im-design.md` `im-structure.md` `quality-checklist.md` | 鳥塚（水産養殖業／関西）・鶴岡中央青果 261027 |
+| 株式価値評価書（VR） | `vr_template.pptx` | `vr_builder.py` | **`ma-valuation` スキル**（正本）＋`valuation.md` | カナリア（260729） |
+| ノンネームシート | `nonname_template.pptx`（A4縦1枚） | `nn_builder.py` | `nonname.md` | 鶴岡中央青果（261015） |
 
-完成形の実例と作り方：`examples/鶴岡中央青果_261027/README.md`（依頼者が「めちゃ良い感じ」と評価した概要書の作成手順と、
+完成形の実例と作り方：`examples/tsuruoka_261027/README.md`（依頼者が「めちゃ良い感じ」と評価した概要書の作成手順と、
 描画チェックで出た不具合の一覧）。**新しい概要書はこの水準以上で作る。**
 
 python-pptx で白紙から組み立ててはいけない。テンプレートにはマスター・レイアウト・テーマ色・ロゴ・紺のヘッダー帯・
@@ -58,7 +58,7 @@ Confidential表記・ページ番号・報酬体系ページが入っており�
 | # | 作業 | 道具 | 守ること |
 |---|---|---|---|
 | 1 | 受領資料をすべて読み、データ化する | Drive `read_file_content`、PDFは `pdftotext`、謄本は `registry_parse.py` | 大きいPDFは結果ファイルから本文を抜いて集計。別案件の資料が混ざっていないか目視 |
-| 2 | **公式マスターを埋める** | `assets/案件マスター_公式テンプレート.xlsx`（依頼者記入途中のマスターがあればそれを起点） | 財務入力（3期＋進行期）→VR→→IM→の順。1期目・空行は非表示。手順と不具合は `im-design.md` §7 |
+| 2 | **公式マスターを埋める** | `assets/master_template.xlsx`（依頼者記入途中のマスターがあればそれを起点） | 財務入力（3期＋進行期）→VR→→IM→の順。1期目・空行は非表示。手順と不具合は `im-design.md` §7 |
 | 3 | 再計算・検算 | soffice＋`inject_cache.py`（またはコピーに `recalc.py`） | 数式エラー0・チェックセルTRUE・調整後EBITDAの3者一致 |
 | 4 | テンプレートから頁構成を作る | `im_builder.open_template()` `keep_slides()` `duplicate_slide()` `strip_red_banners()` `fix_broken_pictures()`、`im_paste.remove_watermark()` | 業種の核の頁を足し、使わない頁を消す。各頁の見本の表・画像は `clear_body()` か `remove()` で消してから貼る。報酬体系頁は消さない |
 | 5 | **表はマスターの貼付範囲を貼る** | `im_paste.paste_range()`（公式マスターは fscale/hscale で縮める） | パワポに数字を打たない。リード文・Commentの数字もマスターから読む |
@@ -92,7 +92,7 @@ Confidential表記・ページ番号・報酬体系ページが入っており�
 
 - **非流動性ディスカウント（EV×30%）は案件の状況に応じて判断する**（標準形は掛けない＝EV＋ネットキャッシュ。状況によっては掛ける）。公式テンプレートのEVシート `K9` で率を切り替える。適用の有無と理由を評価書に明記し、既存案件の判断は依頼者の指示なく変えない
 - 正常化調整（役員報酬・顧問料・社保・賞与・寄付金・経常的な営業外収益）は修正PLの「正常化調整の前提」ブロックに置き、修正SGA・修正PL・PLハイライトはそこを参照する
-- 評価書のパワポは `assets/株式価値評価書_テンプレート.pptx` を複製して作る（`vr_builder.open_vr_template()`）
+- 評価書のパワポは `assets/vr_template.pptx` を複製して作る（`vr_builder.open_vr_template()`）
 
 ### Step 3. IMパート（IM→ セクション）の作成
 
@@ -104,7 +104,7 @@ Confidential表記・ページ番号・報酬体系ページが入っており�
 
 ### Step 4. パワポへの反映
 
-`assets/企業概要書_テンプレート.pptx` を複製（`im_builder.open_template()`）し、**業種に合わせてページを削除・転用・追加**してから、各ページに貼付範囲を貼る（`im_paste.paste_range`）。
+`assets/im_template.pptx` を複製（`im_builder.open_template()`）し、**業種に合わせてページを削除・転用・追加**してから、各ページに貼付範囲を貼る（`im_paste.paste_range`）。
 リード文は `set_lead`、Commentはテンプレートの既存の枠に `fill_comment` で書く（≪見出し≫10pt太字・本文9pt、鳥塚準拠）。
 ページ構成と各ページで言うべきことは `references/im-structure.md`、デザイン仕様・配置の目安・業種別のページ構成は `references/im-design.md`。
 PowerPointファイルを壊さずに編集する手順は `references/pptx-ops.md`（既存の表の編集・複製は `scripts/pptx_table.py`）。**スライドの追加・削除・表の行数変更をする前に必ず読むこと。**
@@ -216,7 +216,7 @@ print('変更スライド:', [i+1 for i, (x, y) in enumerate(zip(a.slides, b.sli
 | `references/company-split.md` | 会社分割・非事業用資産の切出しがある案件のとき |
 | `references/hearing-list.md` | ヒアリング項目一覧を作るとき |
 | `references/pptx-ops.md` | パワポのスライド追加・削除・表の行数変更・図形描画をするとき |
-| `examples/鶴岡中央青果_261027/` | 公式マスター方式の完成形のビルドスクリプトと、描画チェックで出た不具合と直し方 |
+| `examples/tsuruoka_261027/` | 公式マスター方式の完成形のビルドスクリプトと、描画チェックで出た不具合と直し方 |
 
 ## スクリプト（`scripts/`）
 

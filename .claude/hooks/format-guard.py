@@ -34,11 +34,11 @@ IM_REMINDER = """\
 
 1. `.claude/skills/ma-deal-docs/SKILL.md` →「企業概要書の標準フロー」と
    `references/im-design.md`・`references/im-structure.md`・`references/quality-checklist.md` を読む。
-2. 案件マスターは公式フォーマット（`assets/案件マスター_公式テンプレート.xlsx`、
+2. 案件マスターは公式フォーマット（`assets/master_template.xlsx`、
    または依頼者が渡した記入途中の公式マスター）で作る。概要書の数字の表は、
    マスターIM→シートの貼付範囲を `im_paste.paste_range()` で貼る（パワポに数字を打たない）。
-   実例：`.claude/skills/ma-deal-docs/examples/鶴岡中央青果_261027/`（作り方と描画チェックで出た不具合の一覧）。
-3. 概要書は `.claude/skills/ma-deal-docs/assets/企業概要書_テンプレート.pptx` を
+   実例：`.claude/skills/ma-deal-docs/examples/tsuruoka_261027/`（作り方と描画チェックで出た不具合の一覧）。
+3. 概要書は `.claude/skills/ma-deal-docs/assets/im_template.pptx` を
    複製して作る。python-pptx で白紙から組み立てることは禁止。
    `from im_builder import *` → `prs = open_template()` が1行目。
 4. `strip_red_banners(prs)` と `fix_broken_pictures(prs)` を必ず呼ぶ。
@@ -63,7 +63,7 @@ VR_REMINDER = """\
    `.claude/skills/ma-deal-docs/references/valuation.md` を読む。
    非流動性ディスカウント（EV×30%）の適用は案件の状況で判断する（標準形は掛けない。
    掛けるか否かと理由を明記。既存案件の判断は依頼者の指示なく変えない）。
-2. 評価書は `.claude/skills/ma-deal-docs/assets/株式価値評価書_テンプレート.pptx` を
+2. 評価書は `.claude/skills/ma-deal-docs/assets/vr_template.pptx` を
    複製して作る。python-pptx で白紙から組み立てることは禁止。
    `from vr_builder import *` → `prs = open_vr_template()` が1行目。
 3. `strip_red_banners(prs)` と `fix_broken_pictures(prs)` を必ず呼ぶ。
@@ -88,7 +88,7 @@ NN_REMINDER = """\
 企業概要書（IM）とは別物です。着手前に必ず次を守ってください。
 
 1. `.claude/skills/ma-deal-docs/references/nonname.md` を読む。
-2. `.claude/skills/ma-deal-docs/assets/ノンネームシート_テンプレート.pptx` を
+2. `.claude/skills/ma-deal-docs/assets/nonname_template.pptx` を
    複製して作る。白紙から組み立てることは禁止。
    `from nn_builder import *` → `prs = open_nn_template()` が1行目。
    A4縦1枚。構成は 事業内容／特徴・強み／補足事項／本情報の取扱について。

@@ -3,7 +3,7 @@
 概要書は「**案件マスターを埋める → 貼付範囲をコピーして貼る → 業種に合わせて構成を変える**」の順で作る。
 鳥塚案件の概要書（64ページ、M&A承継機構フォーマット）がこの流れと見た目の基準である。
 マスターは**公式フォーマット（M&A承継機構 案件マスター 0925版）**を使う（§7）。
-実装例は鶴岡中央青果（`株式会社鶴岡中央青果/案件マスター_鶴岡中央青果_261027.xlsx`／`企業概要書_鶴岡中央青果_261027.pptx`、作り方は `examples/鶴岡中央青果_261027/`）。
+実装例は鶴岡中央青果（`株式会社鶴岡中央青果/案件マスター_鶴岡中央青果_261027.xlsx`／`企業概要書_鶴岡中央青果_261027.pptx`、作り方は `examples/tsuruoka_261027/`）。
 迷ったらこの2ファイルを開いて同じ形にする。
 
 ## 1. 作成フロー
@@ -14,7 +14,7 @@
 | 2 | VR→で修正PL・修正BSを作る（調整後EBITDAの原本） | 案件マスター |
 | 3 | **IM→の各シートに「貼付範囲」を組む**。行・列・書式は概要書の表と同じ。数値は数式で財務シートを参照 | `scripts/master_im_style.py` |
 | 4 | 再計算してキャッシュ値を書き戻す（書式を壊さないため） | LibreOffice＋`scripts/inject_cache.py` |
-| 5 | 業種に合わせてページ構成を決め、テンプレートのページを削除・転用・追加する（§5） | `assets/企業概要書_テンプレート.pptx`、`im_builder.open_template()` `keep_slides()` `duplicate_slide()` `strip_red_banners()` `fix_broken_pictures()` |
+| 5 | 業種に合わせてページ構成を決め、テンプレートのページを削除・転用・追加する（§5） | `assets/im_template.pptx`、`im_builder.open_template()` `keep_slides()` `duplicate_slide()` `strip_red_banners()` `fix_broken_pictures()` |
 | 6 | 各ページに貼付範囲を貼る。パワポ上で数字は打たない | `scripts/im_paste.py` の `paste_range` |
 | 7 | リード文・Commentをテンプレートの既存の枠に書く（§3の書式） | `set_lead` / `fill_comment` / `comment` |
 | 8 | 検証：数式エラー0・チェックTRUE、validate、全ページをレンダリングして重なり確認 | SKILL.md Step 6 |
@@ -123,7 +123,7 @@ from im_paste import *                  # 表の貼付・Comment・リード文�
 from openpyxl import load_workbook
 
 wb = load_workbook('案件マスター.xlsx', data_only=True)     # 書式も値も読める（再計算・inject_cache済みのもの）
-prs = ib.open_template()                                     # assets/企業概要書_テンプレート.pptx を複製して開く
+prs = ib.open_template()                                     # assets/im_template.pptx を複製して開く
 ib.keep_slides(prs, [...]); ib.strip_red_banners(prs); ib.fix_broken_pictures(prs)
 remove_yellow(prs); remove_null_pics(prs); remove_watermark(prs)
 S = list(prs.slides)
@@ -142,7 +142,7 @@ fill_comment(shape_by_id(s, 9), ['≪売上高≫', '・…', '≪売上総利�
 
 ## 5. 業種に合わせたページ構成
 
-テンプレート（`assets/企業概要書_テンプレート.pptx`、36ページ）を出発点に、**使わないページは削除、足りないページは同じ体裁のページを転用・複製**（`im_builder.duplicate_slide`）する。
+テンプレート（`assets/im_template.pptx`、36ページ）を出発点に、**使わないページは削除、足りないページは同じ体裁のページを転用・複製**（`im_builder.duplicate_slide`）する。
 空欄だらけのページを残さない。
 
 | 判断 | 例 |
@@ -201,7 +201,7 @@ fill_comment(shape_by_id(s, 9), ['≪売上高≫', '・…', '≪売上総利�
 
 ### テンプレートの落とし穴（0925版で確認・修正済み）
 
-`assets/案件マスター_公式テンプレート.xlsx` は以下を修正済みの空テンプレート（グラフ7点は保持）。依頼者が記入途中の0925版を渡してきた場合は、同じ修正を当てる。
+`assets/master_template.xlsx` は以下を修正済みの空テンプレート（グラフ7点は保持）。依頼者が記入途中の0925版を渡してきた場合は、同じ修正を当てる。
 EV EBITDAマルチプルの非流動性ディスカウントは率を `K9`（初期値0%）に持たせ、`K5:M5＝−EV×K9` にしてある（適用は案件の状況で判断）。
 
 - **列幅の定義が範囲でまとまっている**（例：C:Gが1つの定義）。1列だけ非表示にすると範囲全体が消える → 列ごとの定義に分解してから非表示（`ungroup_cols`）

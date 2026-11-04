@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """株式価値評価書（Valuation Report）ハウスフォーマットの部品ライブラリ。
 
-当社テンプレート `assets/株式価値評価書_テンプレート.pptx` を複製したうえで、
+当社テンプレート `assets/vr_template.pptx` を複製したうえで、
 本モジュールと `im_builder` の部品だけでページを組み立てる。
 座標・色・フォントはカナリア案件（Valuation Report 260729）から採取した実測値。
 
@@ -41,7 +41,7 @@ from im_builder import (  # noqa: F401  （評価書でもそのまま使う）
 )
 
 _TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         '..', 'assets', '株式価値評価書_テンプレート.pptx')
+                         '..', 'assets', 'vr_template.pptx')
 
 # ----------------------------------------------------------------- 評価書の定数
 # 評価書の区画見出しは概要書より薄く・文字は大きい（実測）
