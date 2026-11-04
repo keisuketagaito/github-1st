@@ -61,7 +61,8 @@ VR_REMINDER = """\
 
 1. 評価方法の正本は `.claude/skills/ma-valuation/SKILL.md`。あわせて
    `.claude/skills/ma-deal-docs/references/valuation.md` を読む。
-   **非流動性ディスカウントは適用しない**（想定株式価値＝EV＋ネットキャッシュ）。
+   非流動性ディスカウント（EV×30%）の適用は案件の状況で判断する（標準形は掛けない。
+   掛けるか否かと理由を明記。既存案件の判断は依頼者の指示なく変えない）。
 2. 評価書は `.claude/skills/ma-deal-docs/assets/株式価値評価書_テンプレート.pptx` を
    複製して作る。python-pptx で白紙から組み立てることは禁止。
    `from vr_builder import *` → `prs = open_vr_template()` が1行目。
