@@ -165,3 +165,18 @@ def hide_cols(ws, *cols):
     ungroup_cols(ws)
     for c in cols:
         ws.column_dimensions[c].hidden = True
+
+
+def copy_style(src, dst):
+    """セル書式のコピー（公式テンプレートの行・セルの書式を流用して行を増やすとき）。"""
+    import copy as _c
+    dst.font = _c.copy(src.font); dst.fill = _c.copy(src.fill); dst.border = _c.copy(src.border)
+    dst.alignment = _c.copy(src.alignment); dst.number_format = src.number_format
+
+
+def row_style(ws, src_r, dst_r, c1, c2, height=True):
+    """テンプレートの行の書式を別の行へ写す（例：取引先の「その他」「合計」行を1行下げる）。"""
+    for c in range(c1, c2 + 1):
+        copy_style(ws.cell(src_r, c), ws.cell(dst_r, c))
+    if height:
+        ws.row_dimensions[dst_r].height = ws.row_dimensions[src_r].height
