@@ -22,9 +22,9 @@ Valuation Report／ノンネームシート／会社分割スキーム資料／�
 
    | 成果物 | テンプレート | 部品 | 着手前に読む |
    |---|---|---|---|
-   | 企業概要書（IM） | `assets/企業概要書_テンプレート.pptx` | `scripts/im_builder.py` | `references/im-structure.md` |
-   | 株式価値評価書（VR） | `assets/株式価値評価書_テンプレート.pptx` | `scripts/vr_builder.py` | `references/valuation.md` |
-   | ノンネームシート | `assets/ノンネームシート_テンプレート.pptx` | `scripts/nn_builder.py` | `references/nonname.md` |
+   | 企業概要書（IM） | `assets/im_template.pptx` | `scripts/im_builder.py` | `references/im-structure.md` |
+   | 株式価値評価書（VR） | `assets/vr_template.pptx` | `scripts/vr_builder.py` | `references/valuation.md` |
+   | ノンネームシート | `assets/nonname_template.pptx` | `scripts/nn_builder.py` | `references/nonname.md` |
 
    いずれも `.claude/skills/ma-deal-docs/` 配下。python-pptx で白紙から組み立てることは禁止。
    テンプレートにはマスター・レイアウト・テーマ色・ロゴ・ヘッダー帯・Confidential表記・
@@ -37,7 +37,7 @@ Valuation Report／ノンネームシート／会社分割スキーム資料／�
    マスターを直してからパワポに貼る。「このページだけ直して」と言われても、その数字が
    マスター由来なら先にマスターを直す。パワポに数字を直接打つと、評価書と概要書で
    調整後EBITDAが食い違うといった事故が必ず起きる。
-   マスターは公式フォーマット（`assets/案件マスター_公式テンプレート.xlsx`、または依頼者が渡した
+   マスターは公式フォーマット（`assets/master_template.xlsx`、または依頼者が渡した
    記入途中の公式マスター）で作り、概要書の表はマスターIM→シートの「貼付範囲」（概要書と同じ
    行列・書式で組んだ範囲）を `im_paste.paste_range()` でそのまま貼って作る（`references/im-design.md`）。
    納品前に全頁を描画して目視し（`scripts/render_check.py`）、`references/quality-checklist.md` を全項目通す。
@@ -67,8 +67,8 @@ Valuation Report／ノンネームシート／会社分割スキーム資料／�
 
 | 成果物 | 基準とする案件 |
 |---|---|
-| 案件マスター | 鶴岡中央青果案件（公式フォーマット 261027。`assets/案件マスター_公式テンプレート.xlsx`） |
-| 企業概要書（IM） | 鳥塚案件（水産養殖業／関西・64頁）、鶴岡中央青果案件（261027・36頁。作り方は `examples/鶴岡中央青果_261027/`） |
+| 案件マスター | 鶴岡中央青果案件（公式フォーマット 261027。`assets/master_template.xlsx`） |
+| 企業概要書（IM） | 鳥塚案件（水産養殖業／関西・64頁）、鶴岡中央青果案件（261027・36頁。作り方は `examples/tsuruoka_261027/`） |
 | 株式価値評価書（VR） | カナリア案件（Valuation Report 260729・22頁） |
 | ノンネームシート | 鶴岡中央青果案件（261015・A4縦1枚） |
 

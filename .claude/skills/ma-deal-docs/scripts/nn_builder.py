@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """ノンネームシート（買手候補への初期打診資料）の部品ライブラリ。
 
-当社テンプレート `assets/ノンネームシート_テンプレート.pptx` を複製したうえで、
+当社テンプレート `assets/nonname_template.pptx` を複製したうえで、
 表のラベル（業種／エリア／ビジネス面 …）を手掛かりに値だけを差し替える。
 python-pptx で白紙から組み立てることは禁止（他の資料と同じ鉄則）。
 
@@ -47,7 +47,7 @@ from pptx import Presentation
 from pptx.oxml.ns import qn
 
 _TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         '..', 'assets', 'ノンネームシート_テンプレート.pptx')
+                         '..', 'assets', 'nonname_template.pptx')
 
 # 本文テキストの差替え対象外（定型文・改変禁止）
 FIXED_BLOCKS = ('本情報の取扱について',)
