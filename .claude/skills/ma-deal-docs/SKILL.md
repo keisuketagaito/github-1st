@@ -64,7 +64,7 @@ Confidential表記・ページ番号・報酬体系ページが入っており�
 | 5 | **表はマスターの貼付範囲を貼る** | `im_paste.paste_range()`（公式マスターは fscale/hscale で縮める） | パワポに数字を打たない。リード文・Commentの数字もマスターから読む |
 | 6 | 文章を書く | `set_lead()`（2行以内）、テンプレートのComment枠に `fill_comment()`、図解は `im_builder` の部品 | ≪見出し≫＋・本文。「だから何なのか」を書く |
 | 7 | 描画して直す | `scripts/render_check.py` | 折返し・重なり・字幕3行・表のずれがなくなるまで繰り返す（通常3〜4周） |
-| 8 | 検査・納品 | `validate.py --original`、`check_confidential.py`、`quality-checklist.md` | pptx・pdf・マスターを案件フォルダへ保存しコミット・プッシュ。要確認事項と依頼者の判断事項を報告 |
+| 8 | 検査・納品 | `im_paste.scrub_doc_props()`、`validate.py --original`、`check_confidential.py`、`quality-checklist.md` | pptx・pdf・マスターを案件フォルダへ保存しコミット・プッシュ。要確認事項と依頼者の判断事項を報告 |
 
 **表の作り方の優先順位：**数字を含む表は必ずマスターの貼付範囲（`paste_range`）。数字を含まない表（許認可・沿革・補足等）もマスターに置いて貼るのが原則。
 `im_builder.house_table()` で行データから直接組むのは、マスターに置く意味のない補助的な表だけに限る。
@@ -223,7 +223,7 @@ print('変更スライド:', [i+1 for i, (x, y) in enumerate(zip(a.slides, b.sli
 | ファイル | 用途 |
 |---|---|
 | `im_builder.py` | テンプレートを開く・頁の取捨と複製・赤帯除去・壊れた画像参照の除去・頁枠（タイトル／字幕／セクション名）・ハウス部品（Commentボックス・カード・特徴バンド・ポイント帯・写真タイル・簡易グラフ） |
-| `im_paste.py` | マスターの貼付範囲をパワポの表として貼る（`paste_range`：非表示の行列を除外、テーマ色・表示形式を再現）、リード文・Comment・注記 |
+| `im_paste.py` | マスターの貼付範囲をパワポの表として貼る（`paste_range`：非表示の行列を除外、テーマ色・表示形式を再現）、リード文・Comment・注記、`scrub_doc_props`（保存後にファイルのプロパティから個人名・前案件の見出し一覧を除去） |
 | `master_im_style.py` | マスターIM→シートの貼付範囲を鳥塚準拠の書式で組む、列幅定義の分解（`ungroup_cols`）と非表示（`hide_cols`）、行書式のコピー |
 | `inject_cache.py` | LibreOfficeで再計算した値を、書式を保ったまま元のマスターへ書き戻す |
 | `recalc.py` | マスターを再計算してキャッシュ値を書き戻す（簡易版） |
