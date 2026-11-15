@@ -472,3 +472,49 @@ def remove_watermark(prs, marker='御中'):
         for sh in list(m_.shapes):
             if sh.has_text_frame and marker in sh.text_frame.text:
                 sh._element.getparent().remove(sh._element)
+
+
+def scrub_doc_props(path, title='企業概要書', author='株式会社M&A承継機構'):
+    """保存済みのpptx/xlsxのファイルのプロパティから前案件・作成者の痕跡を消す（越ヶ谷製氷冷蔵案件の教訓）。
+
+    テンプレートや他案件のファイルを複製すると、docProps/core.xml に作成者・最終更新者の個人名、
+    docProps/app.xml にスライド見出しの一覧（TitlesOfParts）が残り、買手が「ファイル＞情報」で見られる。
+    core は表題・作成者を差し替え、app は見出し一覧（HeadingPairs/TitlesOfParts）と会社名・管理者を除く。
+    名前空間の宣言位置はpptx（ルート）とxlsx（要素ごと）で違うため、正規表現でなくXMLとして処理する。
+    """
+    import zipfile, os, shutil, tempfile
+    from lxml import etree
+    CP = 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties'
+    DC = 'http://purl.org/dc/elements/1.1/'
+    EP = 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties'
+
+    def _set(root, ns, tag, text):
+        el = root.find(f'{{{ns}}}{tag}')
+        if el is None:
+            el = etree.SubElement(root, f'{{{ns}}}{tag}')
+        el.text = text
+
+    tmp = tempfile.mktemp(suffix=os.path.splitext(path)[1])
+    with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as zout:
+        for it in zin.infolist():
+            data = zin.read(it.filename)
+            if it.filename == 'docProps/core.xml':
+                root = etree.fromstring(data)
+                for ns, tag in ((DC, 'subject'), (DC, 'description'), (CP, 'keywords'), (CP, 'category')):
+                    for el in root.findall(f'{{{ns}}}{tag}'):
+                        root.remove(el)
+                _set(root, DC, 'creator', author)
+                _set(root, CP, 'lastModifiedBy', author)
+                _set(root, DC, 'title', title)
+                rev = root.find(f'{{{CP}}}revision')
+                if rev is not None:
+                    rev.text = '1'
+                data = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
+            elif it.filename == 'docProps/app.xml':
+                root = etree.fromstring(data)
+                for tag in ('HeadingPairs', 'TitlesOfParts', 'Company', 'Manager'):
+                    for el in root.findall(f'{{{EP}}}{tag}'):
+                        root.remove(el)
+                data = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
+            zout.writestr(it, data)
+    shutil.move(tmp, path)
