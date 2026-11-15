@@ -1,668 +1,530 @@
 # -*- coding: utf-8 -*-
-"""企業概要書（越ヶ谷製氷冷蔵株式会社）。数値は全て案件マスターから読み込む。"""
+"""越ヶ谷製氷冷蔵 企業概要書：当社テンプレート（assets/im_template.pptx）を複製し、
+公式マスターの貼付範囲を paste_range で貼る。リード文・Comment の数字もマスターから読む。
+
+    python3 build_im.py <案件マスター.xlsx> <出力.pptx> [写真フォルダ]
+"""
+import json
+import os
 import sys
-sys.path.insert(0, '.')
-from deck import *
-from data import EQUIPMENT_MAIN, LICENSES, SITE_SALES_67, BUSINESS_MIX_67, MONTHLY_67
 
-TEMPLATE, MASTER, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
-IMG = sys.argv[4] if len(sys.argv) > 4 else None
-M = Master(MASTER)
-D = Deck(TEMPLATE)
+HERE = os.path.dirname(os.path.abspath(__file__))
+SK = os.environ.get('MA_SKILL', '/root/.claude/skills/synced/88fd3bc4-f86f-4f70-8539-650c944222ea_4f59f5da-cf81-4443-8419-ba745686a7ff/ma-deal-docs')
+sys.path.insert(0, os.path.join(SK, 'scripts'))
+import im_builder as ib
+from im_paste import *
+from openpyxl import load_workbook
+from pptx.chart.data import CategoryChartData
+from pptx.dml.color import RGBColor
+from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION, XL_LABEL_POSITION
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.oxml.ns import qn
+from pptx.util import Inches, Pt
+
+MASTER, OUT = sys.argv[1], sys.argv[2]
+PH = sys.argv[3] if len(sys.argv) > 3 else os.path.join(HERE, '..', '写真')
+wb = load_workbook(MASTER, data_only=True)
+IDX = json.load(open(os.path.join(HERE, 'master_index.json')))
+v = lambda sh, a: wb[sh][a].value
+k = lambda x: (f'△{abs(x) / 1000:,.0f}' if x < 0 else f'{x / 1000:,.0f}')
+pct = lambda x: f'{x * 100:.1f}%'
 ES, BZ, ORG, FIN, APX = 'エグゼクティブサマリー', '事業概要', '組織、拠点、設備等', '財務情報詳細', 'Appendix'
-PER = [M.v('BS(借方)', f'{c}4') for c in 'CDEF']           # 2023年3月期…
-PS = [p.replace('年', '/').replace('月期', '期')[2:] for p in PER]  # 23/3期…
-X0, W0 = 0.37, 10.95
+
+prs = ib.open_template()
+ib.strip_red_banners(prs)
+ib.fix_broken_pictures(prs)
+remove_yellow(prs); remove_null_pics(prs); remove_watermark(prs)
+T = list(prs.slides)                       # テンプレートの36頁（1始まりで T[n-1]）
+t = lambda n: T[n - 1]
+
+# ---------------------------------------------------------------- 頁構成（複製してから並べ替え）
+s_lic = ib.duplicate_slide(prs, 22, after=22)      # 保有設備一覧 → 許認可・取引金融機関
+s_todo = ib.duplicate_slide(prs, prs.slides.index(t(34)), after=prs.slides.index(t(34)))   # その他補足 → 要確認事項
+ORDER = [t(1), t(2), t(3), t(4), t(5), t(32), t(6), t(7), t(8),
+         t(9), t(10), t(11), t(12), t(13), t(14), t(15),
+         t(16), t(17), t(18), t(20), t(22), t(23), s_lic,
+         t(24), t(25), t(26), t(27), t(28),
+         t(29), t(30), t(34), s_todo, t(35), t(36)]
+lst = prs.slides._sldIdLst
+els = {int(e.get('id')): e for e in lst}
+keep = [s.slide_id for s in ORDER]
+for e in list(lst):
+    if int(e.get('id')) not in keep:
+        prs.part.drop_rel(e.get(qn('r:id')))
+    lst.remove(e)
+for sid in keep:
+    lst.append(els[sid])
 
 
-def pl(key, col):
-    return M.rv('PLハイライト', key, col)
+LEAD_PROTO = [sh for sh in t(13).shapes if sh.is_placeholder and sh.placeholder_format.idx == 1][0]._element
 
 
-def bs(key, col='F'):
-    return M.rv('BSハイライト', key, col)
+def ensure_lead(s):
+    """字幕（リード文）のプレースホルダーが無い頁（テンプレ11・12）に、他頁の字幕を複製して置く。"""
+    import copy as _c
+    if not any(sh.is_placeholder and sh.placeholder_format.idx == 1 for sh in s.shapes):
+        el = _c.deepcopy(LEAD_PROTO)
+        s.shapes._spTree.append(el)
+        ids = [int(e.get('id')) for e in s.shapes._spTree.iter(qn('p:cNvPr'))]
+        el.find('.//' + qn('p:cNvPr')).set('id', str(max(ids) + 1))
 
 
-C4 = 'CDEF'
+def frame(s, title, section, lead=None):
+    ensure_lead(s)
+    ib.set_title(s, title)
+    ib.set_section(s, section)
+    if lead:
+        set_lead(s, lead)
 
-# ============================================================ 1 表紙
-s = D.use(1)
-for sh in s.shapes:
-    if sh.name == 'タイトル 2' and sh.has_text_frame and '企業概要書' in sh.text_frame.text:
-        sh.text_frame.paragraphs[0].runs[1].text = '<製氷業／埼玉県>'
-# 2 はじめに / 3 目次 / 4 中扉
-D.use(2)
-D.use(3)
-D.use(4)
 
-# ============================================================ 5 基本情報
-s = D.new('基本情報', ES,
-          '1960年の創業以来65年超、埼玉県越谷市の自社工場で純水を凍結させた「純氷」を製造。角氷・加工氷・袋氷を首都圏の食品卸・氷卸等へ供給し、自社ブランド「キングアイス」を展開する老舗製氷メーカー。')
-section_bar(s, X0, 1.62, 6.55, '会社概要')
-ws = M.wb['案件サマリー']
-rows = [['項目', '内容']]
-for k in ['会社名', '本店所在地', '工場・営業所', '設立', '資本金', '代表者', '株主', '従業員数', '事業内容', '主要取引先', '主要設備', '売上高', '譲渡理由']:
-    rows.append([k, ws[f'I{M.row("案件サマリー", "co_" + k)}'].value])
-rows[1][1] = '越ヶ谷製氷冷蔵株式会社（ブランド：純氷「キングアイス」）'
-rows[3][1] = '越谷工場：越谷市大字平方999-4（平方工業団地内）\n松戸営業所：千葉県松戸市稔台5-14-3'
-rows[7][1] = '小野田 洋（100%）'
-table(s, X0, 2.0, [1.15, 5.4], rows, row_h=0.36, size=9, header_rows=1)
-photo(s, 'product_ice', 7.15, 1.62, 3.95, 1.75, '角氷・純氷（出典：king-ice.com/product.html）', IMG)
-photo(s, 'product_bag', 7.15, 3.52, 1.9, 1.55, '袋氷「キングアイス」（king-ice.com/product_04.html）', IMG)
-photo(s, 'product_dia', 9.2, 3.52, 1.9, 1.55, 'ダイヤアイス（king-ice.com/product_09.html）', IMG)
-photo(s, 'factory', 7.15, 5.22, 3.95, 1.75, '越谷工場（外観）（king-ice.com/corporate.html）', IMG)
-footnote(s, '※資本金は2026年5月15日に11,000千円から10,000千円へ減資（登記）。売上高・従業員数は2026年3月期。', y=7.22)
+def drop(s, *ids):
+    for sid in ids:
+        try:
+            remove(s, sid)
+        except KeyError:
+            pass
 
-# ============================================================ 6 事業概要（サマリー）
-s = D.new('事業概要', ES,
-          '純水製造から凍結・加工・保管・配送までを自社で一貫して行う製氷事業が売上の約9割。ドライアイス等の商品販売と冷蔵保管を組み合わせ、夏季の需要ピークに対応する供給体制を持つ。')
-sub_head(s, X0, 1.6, 5, '事業構成（2026年3月期・兼業割合）')
-doughnut(s, X0, 1.95, 2.3, 2.3, [b[0] for b in BUSINESS_MIX_67], [b[1] / 100 for b in BUSINESS_MIX_67], [NAVY, BLUE, RGBColor(0x9D, 0xC3, 0xE6)])
-yb = 2.0
-for i, (nm, pct) in enumerate(BUSINESS_MIX_67):
-    col = [NAVY, BLUE, RGBColor(0x9D, 0xC3, 0xE6)][i]
-    rect(s, 2.8, yb + i * 0.72, 0.12, 0.55, fill=col)
-    text_box(s, 3.0, yb + i * 0.72, 2.7, 0.6, [[(f'{pct:.1f}%', {'bold': True, 'size': 14, 'color': col if i < 2 else BLUE, 'font': NUMF})], [(nm, {'size': 8.5})]])
-text_box(s, X0, 4.35, 5.4, 0.2, '出所：法人事業概況説明書（第67期）の兼業割合', size=7.5, color=DGRAY)
-# KPI タイル
-sub_head(s, 5.95, 1.6, 5, '主要指標')
-kpi = [('売上高（26/3期）', f'{fk(pl("売上高", "F"))}千円'),
-       ('調整後EBITDA（直近3期平均）', f'{fk(M.rv("PLハイライト", "avg3", "F"))}千円'),
-       ('製氷能力', '日産40トン'),
-       ('従業員数', '25名')]
-for i, (k, v) in enumerate(kpi):
-    xx, yy = 5.95 + (i % 2) * 2.7, 1.98 + (i // 2) * 1.15
-    rect(s, xx, yy, 2.55, 1.0, fill=LBLUE)
-    text_box(s, xx, yy + 0.1, 2.55, 0.25, k, size=8.5, color=NAVY, align=PP_ALIGN.CENTER)
-    text_box(s, xx, yy + 0.38, 2.55, 0.45, [[(v, {'bold': True, 'size': 16, 'color': NAVY, 'font': NUMF})]], align=PP_ALIGN.CENTER)
-# 事業フロー
-sub_head(s, X0, 4.6, 6, '事業フロー')
-steps = [('純水製造', 'イオン交換・RO膜\nろ過装置'), ('凍結', 'アイス缶で\n約48時間'), ('加工', 'カット・砕氷\n袋詰'), ('保管', '冷蔵設備\nF級1,000トン'), ('配送・販売', '食品卸・氷卸\n業務用顧客')]
+
+def fit(ref, target, hmax=1.0):
+    return min(hmax, target / range_height(wb, ref))
+
+
+def paste(s, ref, x, y, w, fs, target=None, hmax=1.0):
+    hs = fit(ref, target, hmax) if target else hmax
+    paste_range(s, wb, ref, x, y, w, hscale=hs, fscale=fs)
+    return y + range_height(wb, ref, hscale=hs)
+
+
+PL_HEAD, PL_BODY = shape_by_id(t(6), 8), shape_by_id(t(6), 9)     # Comment枠の原本（P/L頁）
+ph_ = lambda a: v('PLハイライト', a)
+avg3, avg2 = ph_('F26'), ph_('F27')
+sales26 = ph_('F4')
+
+# ================================================================ 1 表紙・はじめに・目次
+ib.set_cover_title(t(1), '製氷業', '関東')
+import pptx_table as ptab
+ct = shape_by_id(t(2), 3).table
+for j, val in enumerate(['株式会社M&A承継機構', '田垣内　啓介', '080-4737-4326', 'tagaito_keisuke@ma-sg.co.jp']):
+    ptab.set_cell(ct.cell(1, j), val)
+
+# ================================================================ 基本情報
+s = t(5)
+drop(s, 3, 4, 6, 7, 8, 15)
+frame(s, '基本情報', ES, f'1960年創業の純氷メーカー。自社工場で純水を約48時間かけて凍らせる伝統製法の「純氷」を、首都圏の食品卸・氷卸へ供給。'
+                         f'売上高{k(sales26)}千円（2026年3月期）、調整後EBITDAは直近3期平均{k(avg3)}千円。')
+yb = paste(s, paste_ref(wb, '会社概要'), 0.34, 2.06, 6.41, 0.83, target=5.0)
+place(shape_by_id(s, 2), 0.34, 1.62, 6.41, 0.39)
+mix = [v('月別売上', f'C{r}') for r in (21, 22, 23)]
+box, body = comment(s, PL_HEAD, PL_BODY, 6.95, 1.62, 4.40, yb - 1.62, [
+    '≪65年超の業歴と伝統製法の純氷≫',
+    '・純水装置（イオン交換・RO膜）でろ過した水をアイス缶で約48時間かけて凍結。透明で溶けにくい純氷を自社ブランド「キングアイス」で展開。',
+    '≪首都圏の食品卸・氷卸との継続取引≫',
+    '・(株)日本アクセス・三菱食品(株)等の食品卸、氷卸と取引。掛売中心（月末締め翌月末回収）。',
+    '≪製氷・加工・冷蔵・配送の一貫体制≫',
+    f'・製氷設備日産40トン、冷蔵設備F級1,000トン。製氷関係が売上の{pct(mix[0])}。',
+    '≪工場の土地・建物を自社保有≫',
+    '・越谷市平方工業団地内の工場（土地2,145㎡）を保有。賃借は松戸営業所と駐車場のみ。',
+    '≪論点（要確認）≫',
+    f'・借入金{k(v("BSハイライト", "F27"))}千円と代表者の保証・担保提供、工場建物の会計上の償却停止、発行済株式数の記載相違。',
+], head='本件のポイント', body_dy=0.58)
+for p in body.text_frame.paragraphs:
+    for r in p.runs:
+        r.font.size = Pt(8.5 if not r.text.startswith('≪') else 9.5)
+
+# ================================================================ 事業概要（テンプレ32「事業計画」を転用）
+s = t(32)
+ib.clear_body(s)
+frame(s, '事業概要', ES, f'製氷関係が売上の{pct(mix[0])}を占め、ドライアイス等の商品販売と冷蔵保管を組み合わせる。'
+                        f'純水製造から凍結・加工・保管・配送までを越谷工場で一貫して担い、夏季の需要ピークに対応する。')
+ib.section_bar(s, 0.34, 1.62, 5.2, '事業構成（2026年3月期）', size=12, h=0.34)
+cd = CategoryChartData()
+labs = [v('月別売上', f'B{r}') for r in (21, 22, 23)]
+cd.categories = [f'{l.split("（")[0]} {pct(x)}' for l, x in zip(labs, mix)]
+cd.add_series('兼業割合', mix)
+gf = s.shapes.add_chart(XL_CHART_TYPE.PIE, Inches(0.34), Inches(2.05), Inches(2.6), Inches(2.6), cd)
+ch = gf.chart
+ch.has_title = False
+ch.has_legend = False
+ch.plots[0].has_data_labels = False
+for i, col in enumerate(['0B3041', '0889C9', '9DC3E6']):
+    pt = ch.plots[0].series[0].points[i]
+    pt.format.fill.solid(); pt.format.fill.fore_color.rgb = RGBColor.from_string(col)
+for i, (l, x) in enumerate(zip(labs, mix)):
+    col = [ib.NAVY, ib.BLUE, RGBColor(0x9D, 0xC3, 0xE6)][i]
+    ib.rect(s, 3.05, 2.15 + i * 0.8, 0.10, 0.62, fill=col)
+    ib.textbox(s, 3.25, 2.12 + i * 0.8, 2.3, 0.3, pct(x), size=14, bold=True, color=ib.NAVY, font=ib.NUM)
+    ib.textbox(s, 3.25, 2.44 + i * 0.8, 2.3, 0.3, l, size=8.5)
+ib.textbox(s, 0.34, 4.62, 5.2, 0.2, '出所：法人事業概況説明書（第67期）の兼業割合', size=7.5, color=ib.NOTE)
+ib.section_bar(s, 5.9, 1.62, 5.45, '拠点別売上高（2026年3月期）', size=12, h=0.34)
+rows = [['拠点', '売上高（千円）', '構成比', '内容']]
+for r in (26, 27):
+    rows.append([v('月別売上', f'B{r}'), k(v('月別売上', f'C{r}')), pct(v('月別売上', f'D{r}')), v('月別売上', f'E{r}')])
+rows.append(['合計', k(v('月別売上', 'C28')), '100.0%', ''])
+ib.house_table(s, 5.9, 2.05, 5.45, [1.15, 1.15, 0.8, 2.35], rows, row_h=0.32, head_h=0.3, size=9)
+ib.textbox(s, 5.9, 3.42, 5.45, 0.2, '出所：売上高等の事業所別内訳書（第67期）。登記上の本店は管理のみで売上なし', size=7.5, color=ib.NOTE)
+ib.section_bar(s, 5.9, 3.75, 5.45, '主要設備', size=12, h=0.34)
+paste(s, IDX['EQ_MAIN'], 5.9, 4.15, 5.45, 0.78, target=0.8)
+ib.section_bar(s, 0.34, 5.0, 11.01, '事業フロー', size=12, h=0.34)
+steps = [('純水製造', 'イオン交換・RO膜で\n原水をろ過'), ('凍結', 'アイス缶で\n約48時間'), ('加工', 'カット・砕氷・袋詰\n手切りキューブ'),
+         ('保管', '冷蔵設備で保管\n寄託物品も受託'), ('配送・販売', '自社便・委託便で\n食品卸・氷卸へ')]
 for i, (h, b) in enumerate(steps):
-    xx = X0 + i * 2.2
-    rect(s, xx, 4.95, 2.05, 0.42, fill=NAVY, shape=MSO_SHAPE.PENTAGON if i < 4 else MSO_SHAPE.RECTANGLE, text=h, size=11, color=WHITE, bold=True)
-    rect(s, xx, 5.42, 1.9, 0.62, fill=WHITE, line=LINE, text=b, size=9)
-# 強み
-rect(s, X0, 6.2, W0, 0.9, fill=GRAY)
-rect(s, X0, 6.2, 1.3, 0.9, fill=NAVY, text='強み', size=14, color=WHITE, bold=True)
-pts = ['65年超の業歴と伝統製法による\n高品質な純氷（自社ブランド）', '大手食品卸を含む首都圏の\n安定した販路（掛売99%）', '製氷・加工・冷蔵・配送の\n一貫体制と自社保有の工場']
-for i, t in enumerate(pts):
-    xx = 1.85 + i * 3.15
-    rect(s, xx, 6.47, 0.32, 0.32, fill=BLUE, shape=MSO_SHAPE.OVAL, text='✓', size=11, color=WHITE, bold=True)
-    text_box(s, xx + 0.4, 6.36, 2.7, 0.55, t, size=9.5, bold=True, color=NAVY, anchor=MSO_ANCHOR.MIDDLE)
-footnote(s, '※製法・設備の記載は同社公式サイト等の公開情報および法人事業概況説明書による。', y=7.2)
+    x = 0.34 + i * 2.22
+    sp = ib.rect(s, x, 5.45, 2.12, 0.42, fill=ib.NAVY, shape=MSO_SHAPE.PENTAGON if i < 4 else MSO_SHAPE.RECTANGLE)
+    ib.set_text(sp, h, size=11, bold=True, color=ib.WHITE, align=PP_ALIGN.CENTER)
+    sp.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+    bx = ib.rect(s, x, 5.95, 1.95, 0.62, fill=ib.WHITE, line=ib.GREY)
+    ib.set_text(bx, b, size=9, color=ib.BODY, align=PP_ALIGN.CENTER)
+    bx.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+ib.textbox(s, 0.34, 6.72, 11.0, 0.4, '※製法・設備の記載は同社公式サイト等の公開情報および法人事業概況説明書による。原水の取水方法、製氷缶の数量・稼働率は要確認。', size=7.5, color=ib.NOTE)
 
-# ============================================================ 7 財務ハイライト（P/L）
-avg3 = M.rv('PLハイライト', 'avg3', 'F')
-avg2 = M.rv('PLハイライト', 'avg2', 'F')
-s = D.new('財務ハイライト（P/L）', ES,
-          f'売上高は4期連続で増加し2026年3月期に{fk(pl("売上高", "F"))}千円。電力費高騰で営業赤字となった2023年3月期から回復し、臨時的支出を調整した調整後EBITDAは直近3期平均{fk(avg3)}千円で安定。')
-unit(s, 4.9, 1.55, 1.8)
-rows = [['', *PS]]
-spec = [('売上高', '売上高', 'v'), ('前期比', '前期比', 'p'), ('売上総利益', '売上総利益', 'v'), ('粗利率', '利益率', 'p'),
-        ('営業利益', '営業利益', 'v'), ('営業利益率', '利益率', 'p'), ('経常利益', '経常利益', 'v'), ('経常利益率', '利益率', 'p'),
-        ('当期純利益', '当期純利益', 'v'), ('減価償却費', '減価償却費', 'v'), ('EBITDA', 'EBITDA', 'v'),
-        ('adj_退職', '　退職給与（臨時）', 'v'), ('adj_役員', '　役員報酬', 'v'), ('調整後EBITDA', '調整後EBITDA', 'v')]
-small, bold_r, fills = [], [], {}
-for key, nm, kind in spec:
-    vals = [M.rv('PLハイライト', key, c) for c in C4]
-    if kind == 'p':
-        cells = ['-' if (key == '前期比' and i == 0) else fp(v) for i, v in enumerate(vals)]
-        small.append(len(rows))
-        rows.append([nm, *cells])
-    else:
-        if key.startswith('adj'):
-            cells = ['-' if i == 0 else (fk(v, dash='0') if v == 0 else ('+' + fk(v) if v > 0 else fk(v))) for i, v in enumerate(vals)]
-        else:
-            cells = [fk(v) for v in vals]
-        rows.append([nm, *cells])
-    if key in ('売上高', '営業利益', '調整後EBITDA'):
-        bold_r.append(len(rows) - 1)
-fills[len(rows) - 1] = LBLUE
-t = table(s, X0, 1.78, [1.6, 1.25, 1.25, 1.25, 1.25], rows, row_h=0.31, size=10, num_cols={1, 2, 3, 4},
-          bold_rows=bold_r, fill_rows=fills, small_rows=small, align_cols=None)
-for r_ in small:
-    for j in range(1, 5):
-        t.table.cell(r_, j).text_frame.paragraphs[0].runs[0].font.size = Pt(8)
-footnote(s, [f'※EBITDA＝営業利益＋減価償却費（製造原価・販管費計上分）。調整後EBITDAの直近2期平均は{fk(avg2)}千円。',
-             '※23/3期は評価対象期間外のため調整なし。'], y=6.5, w=6.6)
-comment_box(s, 7.05, 1.62, 4.25, 4.15, [
-    ('売上高', [f'23/3期{fk(pl("売上高", "C"))}千円から24/3期{fk(pl("売上高", "D"))}千円（前期比{fp(pl("前期比", "D"))}）へ大きく伸長し、以降も増収を継続。',
-              '製氷関係が約9割を占め、7〜8月の盛夏期に年間売上の約3割が集中する。']),
-    ('売上総利益', [f'23/3期は電力料（動力費）が{fk(M.rv("CR", "製造経費/動力費", "C"))}千円に膨らみ粗利率{fp(pl("粗利率", "C"))}に低下。',
-                f'24/3期以降は電力料が32〜34百万円台に落ち着き、粗利率は22〜26%で推移。']),
-    ('営業利益', [f'配送委託の運賃増加（24/3期{fk(M.rv("SGA", "輸送関係費/運賃", "D"))}千円→26/3期{fk(M.rv("SGA", "輸送関係費/運賃", "F"))}千円）等により、25/3期以降は減益。',
-              f'26/3期は臨時的な退職給与{fk(M.rv("CR", "労務費/退職給与", "F"))}千円を含み{fk(pl("営業利益", "F"))}千円。']),
-    ('EBITDA', [f'減価償却費は24/3期以降11〜22百万円で推移（23/3期はほぼ未計上）。',
-                f'臨時的な退職給与を調整した調整後EBITDAは34〜37百万円で安定し、直近3期平均{fk(avg3)}千円。']),
-], size=8.5)
-rect(s, 7.05, 5.88, 4.25, 1.22, fill=LBLUE, line=BLUE)
-text_box(s, 7.18, 5.93, 4.0, 1.15, [
-    [('【調整項目】', {'bold': True, 'size': 9.5})],
-    [('≪退職給与≫ 26/3期・24/3期の退職給与は臨時的な支出と推察し加算（要確認）', {'size': 8.5})],
-    [('≪役員報酬≫ 現行7,200千円／年は標準的な水準と想定し調整なし', {'size': 8.5})],
-    [(f'✓ 調整後EBITDA（直近3期平均）は{fk(avg3)}千円', {'bold': True, 'size': 9.5, 'color': NAVY})]])
+# ================================================================ 財務ハイライト（P/L）
+s = t(6)
+drop(s, 18)
+ref = paste_ref(wb, 'PLハイライト')
+yb = paste(s, ref, 0.34, 1.55, 6.62, 0.875, target=5.0)
+note(s, 0.34, yb + 0.1, 6.62, [f'※EBITDA＝営業利益＋減価償却費（製造原価・販管費）。調整後EBITDAの直近3期平均は{k(avg3)}千円、直近2期平均は{k(avg2)}千円。',
+                               '※調整方針は株式価値評価書の正常収益力と同一。進行期の試算表は未受領。'], size=7.5)
+frame(s, '財務ハイライト（P/L）', ES, f'売上高は4期連続で増加し2026年3月期に{k(sales26)}千円。電力料が高騰した2023年3月期の営業赤字から回復し、'
+                                      f'臨時的な退職給与を調整した調整後EBITDAは直近3期平均{k(avg3)}千円で安定。')
+power = [ph_(f'{c}30') for c in 'CDEF']
+fre = [ph_(f'{c}31') for c in 'CDEF']
+fill_comment(shape_by_id(s, 9), [
+    '≪売上高≫',
+    f'・{k(ph_("C4"))}→{k(ph_("D4"))}→{k(ph_("E4"))}→{k(ph_("F4"))}千円と4期連続で増加。7〜8月の盛夏期に年間売上の約3割が集中する。',
+    '≪売上総利益≫',
+    f'・23/3期は電力料（動力費）が{k(power[0])}千円に膨らみ粗利率{pct(ph_("C7"))}。24/3期以降は電力料が{k(power[1])}〜{k(power[3])}千円に落ち着き、粗利率は{pct(ph_("F7"))}〜{pct(ph_("D7"))}。',
+    '≪営業利益≫',
+    f'・配送運賃の増加（24/3期{k(fre[1])}千円→26/3期{k(fre[3])}千円）で25/3期以降は減益。26/3期は臨時的な退職給与{k(ph_("F33"))}千円を含む。',
+    '≪EBITDA≫',
+    f'・減価償却費は24/3期以降{k(ph_("D15"))}〜{k(ph_("F15"))}千円（23/3期はほぼ未計上）。調整後EBITDAは34〜37百万円で安定。',
+], body=8.5, head=9.5, after=2)
+fill_comment(shape_by_id(s, 10), [
+    '【調整項目】',
+    '≪退職給与≫',
+    '・過去に発生のない臨時的な退職金支出と推察し加算（24/3期307千円・26/3期6,178千円。規程・対象者は要確認）',
+    '≪役員報酬≫',
+    '・現行の代表者報酬7,200千円／年は標準的な水準と想定し調整なし',
+    f'✓ 調整後EBITDA（直近3期平均）は{k(avg3)}千円',
+], body=8, head=9, after=1)
 
-# ============================================================ 8 財務ハイライト（B/S）
-s = D.new('財務ハイライト（B/S）', ES,
-          f'越谷工場の土地・建物と製氷設備を自社保有する装置型の資産構成。一方で借入金{fk(bs("借入金（短期・長期）"))}千円を抱え、工場建物は会計上の償却が行われていないため簿価が時価を大きく上回る点に留意を要する。')
-unit(s, 3.9, 1.55, 1.8)
-L = [('現預金', fk(bs('現預金（保険積立除く）'))), ('保険積立金', fk(bs('保険積立金'))), ('売掛金', fk(bs('売掛金'))), ('棚卸資産', fk(bs('棚卸資産'))),
-     ('その他', fk(bs('その他流動資産'))), ('流動資産', fk(bs('流動資産合計'))), ('建物・構築物', fk(bs('建物・構築物'))),
-     ('機械・車両・器具', fk(bs('機械・車両・器具'))), ('土地', fk(bs('土地'))), ('無形・投資等', fk(bs('無形固定資産・投資等'))),
-     ('固定資産', fk(bs('固定資産合計'))), ('資産合計', fk(bs('資産合計')))]
-cl_other = M.v('BS (貸方)', f'F{M.row("BS (貸方)", "sub_cl")}') - M.v('BS (貸方)', f'F{M.row("BS (貸方)", "支払手形")}') - M.v('BS (貸方)', f'F{M.row("BS (貸方)", "買掛金")}') - M.v('BS (貸方)', f'F{M.row("BS (貸方)", "短期借入金")}')
-Rr = [('支払手形・買掛金', fk(bs('支払手形・買掛金'))), ('短期借入金', fk(M.rv('BS (貸方)', '短期借入金', 'F'))), ('その他', fk(cl_other)),
-      ('流動負債', fk(M.rv('BS (貸方)', 'sub_cl', 'F'))), ('長期借入金', fk(M.rv('BS (貸方)', '長期借入金', 'F'))), ('固定負債', fk(M.rv('BS (貸方)', 'sub_fl', 'F'))),
-      ('負債合計', fk(bs('負債合計'))), ('資本金', fk(M.rv('BS (貸方)', '資本金', 'F'))),
-      ('利益剰余金', fk(bs('純資産合計') - M.rv('BS (貸方)', '資本金', 'F'))), ('純資産合計', fk(bs('純資産合計'))), ('', ''), ('負債・純資産合計', fk(bs('負債・純資産合計')))]
-rows = [[PS[3] + '（2026年3月31日）', None, None, None]]
-for (a, b), (c, d) in zip(L, Rr):
-    rows.append([a, b, c, d])
-bold_r = [6, 11, 12]
-t = table(s, X0, 1.78, [1.55, 0.95, 1.55, 0.95], rows, row_h=0.32, size=10, num_cols={1, 3}, label_cols=0,
-          bold_rows=[6, 11, 12], fill_rows={6: GRAY, 11: GRAY, 12: LBLUE}, merge=[(0, 0, 0, 3)])
-# 負債側の小計行を太字に
-for r_ in (4, 6, 7, 10):
-    for j in (2, 3):
-        c_ = t.table.cell(r_, j)
-        c_.text_frame.paragraphs[0].runs[0].font.bold = True
-        c_.fill.solid()
-        c_.fill.fore_color.rgb = GRAY
-land_ev = M.rv('土地', '土地', 'G')
-bld_ev = M.rv('土地', '建物', 'G')
-na_fair = M.rv('BSハイライト', '時価純資産', 'F')
-loans = M.wb['借入金']
-comment_box(s, 5.6, 1.62, 5.7, 3.75, [
-    ('現預金・保険積立金', [f'現預金{fk(bs("現預金（保険積立除く）"))}千円（うち定期預金{fk(M.rv("BS(借方)", "定期預金", "F"))}千円）。',
-                       f'生命保険積立金{fk(bs("保険積立金"))}千円は決算書上「現預金（諸掛金）」に含めて表示されている。']),
-    ('固定資産', [f'越谷工場の土地{fk(bs("土地"))}千円（固定資産税評価額{fk(land_ev)}千円、2,145㎡）、建物{fk(M.rv("BS(借方)", "建物", "F"))}千円（同{fk(bld_ev)}千円）。',
-              f'工場建物（1991年建設）は会計上の減価償却を行っておらず、当期の償却不足額は{fk(M.rv("減価償却", "建物", "G"))}千円。',
-              f'機械{fk(M.rv("BS(借方)", "機械", "F"))}千円は製氷設備・冷凍機等（127件）。']),
-    ('借入金', [f'金融機関6行庫で{fk(bs("借入金（短期・長期）") - 14000000)}千円、代表者借入14,000千円。',
-             '日本政策金融公庫161,252千円（うち資本性ローン105,420千円）、栃木銀行114,101千円、商工中金79,327千円等。',
-             '代表者が連帯保証・個人所有土地の担保提供を行っている。']),
-    ('純資産', [f'簿価純資産{fk(bs("純資産合計"))}千円。建物を固定資産税評価額、土地を同評価額÷0.7で評価替えした場合の時価純資産は{fk(na_fair)}千円と試算。']),
-], size=9)
-debt4 = [rk(M.rv('BSハイライト', '借入金（短期・長期）', c)) for c in C4]
-na4 = [rk(M.rv('BSハイライト', '純資産合計', c)) for c in C4]
-sub_head(s, 5.6, 5.45, 5, '借入金・純資産の推移（千円）', size=10)
-bar_line_chart(s, 5.6, 5.72, 5.7, 1.45, PS, [('借入金', debt4)], [('純資産（右軸）', na4, '0889C9', '#,##0')],
-               number_format='#,##0', bar_colors=(NAVY,), font_size=7.5, legend=True, gap=120)
+# ================================================================ 財務ハイライト（B/S）
+s = t(7)
+drop(s, 17, 9)
+yb = paste(s, paste_ref(wb, 'BSハイライト'), 0.37, 1.55, 5.47, 0.875, target=5.2)
+note(s, 0.37, yb + 0.1, 5.47, ['※2026年3月期末（評価基準日）。4期推移は「財務情報詳細｜貸借対照表」。'], size=7.5)
+debt = v('BSハイライト', 'F27')
+frame(s, '財務ハイライト（B/S）', ES, f'越谷工場の土地・建物と製氷設備を自社保有する装置型の資産構成。借入金{k(debt)}千円を抱え、'
+                                      '工場建物は会計上の償却を停止しているため簿価が時価を大きく上回る点に留意を要する。')
+land_ev = v('不動産(所有)', 'J4'); bld_ev = v('不動産(所有)', 'J5')
+fill_comment(shape_by_id(s, 7), [
+    '≪現預金・保険積立金≫',
+    f'・現預金{k(v("BS(借方)", "F6"))}千円（定期預金を含む）。生命保険の積立金{k(v("BS(借方)", "F8"))}千円は決算書上「現預金（諸掛金）」に含めて表示。',
+    '≪固定資産≫',
+    f'・工場の土地{k(v("BS(借方)", "F27"))}千円（固定資産税評価額{k(land_ev)}千円）、建物{k(v("BS(借方)", "F22"))}千円（同{k(bld_ev)}千円）。機械{k(v("BS(借方)", "F24"))}千円は製氷設備・冷凍機等。',
+    '≪借入金≫',
+    f'・金融機関6行庫{k(debt - v("BS (貸方)", "F57"))}千円と代表者借入{k(v("BS (貸方)", "F57"))}千円。日本公庫には資本性ローン{k(v("BS (貸方)", "F58"))}千円を含む。代表者が連帯保証・担保提供。',
+], body=8.5, head=9.5, after=2)
+place(shape_by_id(s, 2), 6.08, 1.51, 5.24, 3.0); place(shape_by_id(s, 7), 6.08, 2.05, 5.24, 2.4)
+place(shape_by_id(s, 6), 6.08, 4.62, 5.24, 2.95); place(shape_by_id(s, 8), 6.08, 4.70, 5.24, 2.8)
+fill_comment(shape_by_id(s, 8), [
+    '【時価修正】（詳細は株式価値評価書）',
+    f'≪建物≫ 固定資産税評価額へ評価替え（{k(v("修正BS(借方)", "D22"))}千円）',
+    f'≪土地≫ 固定資産税評価額÷0.7で時価推計（＋{k(v("修正BS(借方)", "D27"))}千円）',
+    f'≪構築物・機械≫ 当期の償却不足額を減額（{k(v("修正BS(借方)", "D23") + v("修正BS(借方)", "D24"))}千円）',
+    '≪保険積立金・売掛金・棚卸資産≫ 資料未受領のため簿価（要確認）',
+    f'✓ 簿価純資産{k(v("修正BS(貸方) ", "C52"))}千円 → 時価純資産{k(v("修正BS(貸方) ", "E52"))}千円',
+    f'✓ ネットデット{k(v("ネットキャッシュ", "F15"))}千円（代表者借入金を含む）',
+], body=8, head=9, after=1)
 
-# ============================================================ 9 譲渡希望条件
-s = D.use(9)
-for sh in s.shapes:
-    if not sh.has_text_frame:
+# ================================================================ 譲渡希望条件
+s = t(8)
+set_text(shape_by_id(s, 19), '株式100％譲渡')
+set_text(shape_by_id(s, 56), '応相談')
+sh = shape_by_id(s, 256)
+set_text(sh, ['従業員の継続雇用', '代表者は引継ぎ完了後に退任予定（引継ぎ期間・条件は譲受企業と協議）',
+              '代表者の連帯保証・個人所有土地の担保提供の解除', '代表者借入金（1,400万円）・駐車場賃貸借の取扱いは要協議'], size=12)
+place(sh, 3.45, 4.62, 7.74, 1.2)
+set_text(shape_by_id(s, 264), '後継者不在')
+
+# ================================================================ 事業内容（商流）
+s = t(10)
+drop(s, 2)
+frame(s, '事業内容（商流）', BZ, '包装資材・ドライアイス等の商品を仕入れ、越谷工場で製造した純氷を加工・袋詰めして首都圏の食品卸・氷卸・業務用顧客へ供給。'
+                               '配送は自社便と運送会社への委託を併用する。')
+set_text(shape_by_id(s, 8), ['鈴木段ボール工業(株)', '大三紙業(株)', '(株)シモジマ', '日本液炭(株)', '越谷松伏水道企業団'], size=9)
+place(shape_by_id(s, 8), 0.49, 2.2, 2.36, 2.1)
+set_text(shape_by_id(s, 13), ['(株)日本アクセス', '三菱食品(株)', '(株)日本橋冷凍手島商店', '金木屋商事(株)', '(株)ニチレイ・アイス', '(株)クールテックサガワ', 'ほか業務用顧客'], size=9)
+place(shape_by_id(s, 13), 8.84, 2.2, 2.36, 2.4)
+set_text(shape_by_id(s, 39), '製氷事業（越谷工場）', size=11)
+set_text(shape_by_id(s, 51), ['純水製造・凍結', '角氷（約135kg）'], size=9)
+set_text(shape_by_id(s, 52), ['加工・袋詰', '加工氷・袋氷'], size=9)
+set_text(shape_by_id(s, 46), '商品販売・冷蔵保管', size=11)
+set_text(shape_by_id(s, 49), ['商品販売', 'ドライアイス等'], size=9)
+set_text(shape_by_id(s, 50), ['冷蔵保管', '寄託物品'], size=9)
+set_text(shape_by_id(s, 47), '販売拠点', size=11)
+set_text(shape_by_id(s, 55), ['松戸営業所', '千葉県松戸市'], size=9)
+set_text(shape_by_id(s, 56), ['配送', '自社便・委託便'], size=9)
+set_text(shape_by_id(s, 12), '主要外注・委託先', size=11)
+set_text(shape_by_id(s, 25), ['配送委託', '運送会社2社 等'], size=8.5)
+set_text(shape_by_id(s, 26), ['人材派遣', '繁忙期の製造要員'], size=8.5)
+ib.textbox(s, 0.49, 4.5, 2.36, 1.0, '※包装資材（段ボール・袋）、ドライアイス等の商品、原水（上水道）を仕入。電力は新電力と契約。', size=7.5, color=ib.NOTE)
+ib.textbox(s, 8.84, 4.75, 2.36, 1.2, '※販売は月末締め翌月末回収（掛売99%）。(株)日本橋冷凍手島商店は資材の仕入先でもある。', size=7.5, color=ib.NOTE)
+
+# ================================================================ 純氷の製造工程（テンプレ11を転用）
+s = t(11)
+ib.clear_body(s)
+frame(s, '純氷の製造工程', BZ, 'ろ過した純水をアイス缶に注ぎ、低温のブラインで約48時間かけてゆっくり凍らせる伝統製法。'
+                               '空気で撹拌しながら不純物を中心に集めて除去するため、透明度が高く硬く溶けにくい純氷ができる。')
+procs = [('① 純水製造', '原水を自社の純水装置でろ過。1964年にイオン交換方式、1990年に逆浸透膜（RO）ろ過装置を導入'),
+         ('② 注水', '純水をアイス缶（製氷缶）へ注ぎ、缶グリッドごとブライン槽へ'),
+         ('③ 凍結', '約－12℃のブラインで約48時間かけて凍結。空気撹拌で不純物を中央に集めて吸い取る'),
+         ('④ 揚氷・脱缶', '約135kgの角氷として揚氷。氷の基本となる製品'),
+         ('⑤ 加工・袋詰', 'カット・砕氷・袋詰（キングアイス1.1kg〜）、手切りのダイヤアイス、板氷 等'),
+         ('⑥ 保管・出荷', '冷蔵設備（F級1,000トン）で保管し、自社便・委託便で配送')]
+for i, (h, b) in enumerate(procs):
+    x = 0.34 + i * 1.84
+    sp = ib.rect(s, x, 1.62, 1.78, 0.46, fill=ib.NAVY if i % 2 == 0 else ib.BLUE, shape=MSO_SHAPE.CHEVRON if i else MSO_SHAPE.PENTAGON)
+    ib.set_text(sp, h, size=10, bold=True, color=ib.WHITE, align=PP_ALIGN.CENTER)
+    sp.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+    ph_ok = ib.photo_tile(s, os.path.join(PH, f'工程{i + 1}.jpg'), x + 0.05, 2.2, 1.66, 1.15, h[2:])
+    by = 3.55 if os.path.exists(os.path.join(PH, '工程1.jpg')) else 2.22
+    bx = ib.rect(s, x + 0.05, by, 1.66, 1.5 if by > 3 else 2.6, fill=ib.WHITE, line=ib.GREY)
+    ib.set_text(bx, b, size=8.5 if by > 3 else 9.5, color=ib.BODY, line_sp=1.25)
+    bx.text_frame.vertical_anchor = MSO_ANCHOR.TOP
+ib.section_bar(s, 0.34, 5.25, 5.3, '純氷の特徴（公開情報）', size=12, h=0.34)
+ib.textbox(s, 0.44, 5.68, 5.15, 1.4, '・結晶の並びが規則的で透明度が高く、硬く割れにくい\n・熱が伝わりにくく溶けにくい。溶け方が一定で飲料の味を損ねにくい\n'
+           '・料亭・日本料理店などの飲食店や、ぶっかき氷・ロックアイス用途で使用\n・自社ブランド「キングアイス」（1.1kg／2kg／3kg袋、板氷、かき氷用キューブ 等）',
+           size=9, line_sp=1.2)
+ib.section_bar(s, 5.95, 5.25, 5.4, '主要設備', size=12, h=0.34)
+paste(s, IDX['EQ_MAIN'], 5.95, 5.68, 5.4, 0.78)
+ib.textbox(s, 0.34, 7.05, 11.0, 0.2, '※工程の記載は同社公式サイト等の公開情報による。工程写真は受領後に掲載。製氷缶の数量・1回あたり生産量・稼働率は要確認。', size=7.5, color=ib.NOTE)
+
+# ================================================================ 特徴・強み・成長性
+s = t(12)
+for sid, (h, b) in zip((14, 20, 29), [
+        ('65年超の業歴を持つ純氷メーカー・自社ブランド「キングアイス」',
+         '1960年創業。自社の純水設備（イオン交換・RO膜）でろ過した水を、アイス缶で約48時間かけて凍結する伝統製法により、透明度が高く溶けにくい純氷を製造。角氷から袋氷・手切りキューブまで自社で加工する。'),
+        ('大手食品卸を含む首都圏の安定した販路と一貫供給体制',
+         '(株)日本アクセス・三菱食品(株)等の食品卸や氷卸と継続取引（掛売99%）。製氷・加工・冷蔵保管・配送を自社で一貫して担い、夏季の需要ピークにも製氷能力日産40トン・冷蔵1,000トンの設備で対応する。'),
+        ('猛暑による需要拡大と設備・物流網を活かした拡張余地（仮説）',
+         '夏季需要が売上の約3割を占め、猛暑の長期化は追い風。冬季は冷蔵保管で稼働を補完しており、食品・物流関連の買手の販路・配送網との連携により、閑散期の稼働向上や取扱商品拡大の余地があると想定。')]):
+    sh = shape_by_id(s, sid)
+    set_text(sh, [h, b])
+    ps = sh.text_frame.paragraphs
+    for r in ps[0].runs:
+        r.font.size = Pt(16); r.font.bold = True
+    for r in ps[1].runs:
+        r.font.size = Pt(11); r.font.bold = False
+frame(s, '特徴・強み・成長性', BZ, '65年超の業歴に裏付けられた純氷の品質と、首都圏の食品卸・氷卸への安定した販路、製氷から配送までの一貫体制が強み。'
+                                  '猛暑の長期化と買手の販路・物流網との連携で拡張余地がある（仮説）。')
+for sh in s.shapes:            # リード文の分だけ3バンドを下げる（1段目+0.42、2段目+0.21）
+    if sh.is_placeholder:
         continue
-    if sh.name == 'テキスト ボックス 18':
-        set_runs_text(sh.text_frame, '株式100％譲渡')
-    elif sh.name == 'テキスト ボックス 55':
-        set_runs_text(sh.text_frame, '応相談')
-    elif sh.name == 'テキスト ボックス 1':
-        set_runs_text(sh.text_frame, '後継者不在')
-    elif sh.name == 'テキスト ボックス 255':
-        tf = sh.text_frame
-        items = ['従業員の継続雇用', '代表者は引継ぎ完了後に退任予定（引継ぎ期間・条件は譲受企業と協議）',
-                 '代表者の連帯保証・個人所有土地の担保提供の解除', '代表者借入金（1,400万円）の取扱い・代表者所有駐車場の賃貸借は要協議']
-        paras = tf.paragraphs
-        for i, p in enumerate(paras):
-            if i < len(items):
-                p.runs[0].text = items[i]
-                for r_ in p.runs[1:]:
-                    r_._r.getparent().remove(r_._r)
-            else:
-                p._p.getparent().remove(p._p)
+    y_ = sh.top / 914400
+    if 1.1 <= y_ < 3.3:
+        sh.top = Inches(y_ + 0.42)
+    elif 3.3 <= y_ < 5.5:
+        sh.top = Inches(y_ + 0.21)
 
-# ============================================================ 10 中扉 事業概要
-D.use(10)
+# ================================================================ 月別売上高（季節性）（テンプレ13を転用）
+s = t(13)
+drop(s, 8)
+ref = paste_ref(wb, '月別売上')
+months = [v('月別売上', f'{c}4') for c in 'CDEFGHIJKLMN']
+sm = [v('月別売上', f'{c}5') for c in 'CDEFGHIJKLMN']
+st = [v('月別売上', f'{c}6') for c in 'CDEFGHIJKLMN']
+frame(s, '月別売上高（季節性）', BZ, f'売上は気温に連動する季節性が高く、7〜8月の2か月で年間の{pct(v("月別売上", "C12"))}を占める。'
+                                     '冬季（11〜2月）は夏季の約1/4に落ち込む一方、冷蔵保管料が増加し閑散期の設備稼働を補っている。')
+cd = CategoryChartData()
+cd.categories = months
+cd.add_series('売上（凍氷）', sm)
+gf = s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(0.34), Inches(1.55), Inches(6.9), Inches(3.55), cd)
+ch = gf.chart
+ch.has_title = False; ch.has_legend = True; ch.legend.position = XL_LEGEND_POSITION.TOP; ch.legend.include_in_layout = False
+ch.font.size = Pt(8); ch.font.name = JP
+pl_ = ch.plots[0]; pl_.gap_width = 60
+ser = pl_.series[0]; ser.format.fill.solid(); ser.format.fill.fore_color.rgb = ib.NAVY
+ser.data_labels.show_value = True; ser.data_labels.number_format = '#,##0'; ser.data_labels.number_format_is_linked = False
+ser.data_labels.font.size = Pt(7.5); ser.data_labels.position = XL_LABEL_POSITION.OUTSIDE_END
+ch.value_axis.has_major_gridlines = True; ch.value_axis.major_gridlines.format.line.color.rgb = ib.GREY
+ch.value_axis.tick_labels.number_format = '#,##0'; ch.value_axis.tick_labels.number_format_is_linked = False
+ch.value_axis.minimum_scale = 0
+ib.textbox(s, 5.6, 1.5, 1.6, 0.2, '（単位：千円）', size=8, color=ib.NOTE, align=PP_ALIGN.RIGHT)
+yb = paste(s, ref, 0.34, 5.3, 11.0, 0.8)
+note(s, 0.34, yb + 0.08, 11.0, ['※出所：第67期（2026年3月期）法人事業概況説明書。千円単位の記載を集計しているため決算書の売上高とは端数が一致しない。'], size=7.5)
+comment(s, PL_HEAD, PL_BODY, 7.45, 1.55, 3.9, 3.55, [
+    '≪季節性≫',
+    f'・7月{sm[3]:,}千円・8月{sm[4]:,}千円がピーク。6〜9月の4か月で年間の{pct(v("月別売上", "C13"))}。',
+    f'・11〜2月は月平均{v("月別売上", "C14"):,.0f}千円。',
+    '≪費用・人員≫',
+    '・人件費は7月・12月に賞与支給で増加。従事員数は23〜26名でほぼ一定、繁忙期は人材派遣で補完。',
+    '≪冷蔵保管≫',
+    f'・保管料は11〜12月に増加（12月{st[8]:,}千円）。年末の食品保管需要と推察。',
+], head='Comment', body_dy=0.55)
 
-# ============================================================ 11 事業内容（商流）
-s = D.new('事業内容（商流）', BZ,
-          '包装資材・商品を仕入れ、越谷工場で製造した純氷を加工・袋詰めし、首都圏の食品卸・氷卸・業務用顧客へ配送。配送は自社便と運送会社への委託を併用する。')
-for xx, w_, ttl in [(X0, 2.45, '主要仕入先'), (3.1, 5.2, '対象会社'), (8.55, 2.75, '主要販売先')]:
-    rect(s, xx, 1.6, w_, 4.45, fill=GRAY if ttl != '対象会社' else LBLUE)
-    line(s, xx, 1.6, xx + w_, 1.6, NAVY, 3)
-    text_box(s, xx, 1.66, w_, 0.3, [[(ttl, {'bold': True, 'size': 13, 'color': NAVY})]], align=PP_ALIGN.CENTER)
-sup = [('包装資材（段ボール・袋）', '鈴木段ボール工業(株)\n大三紙業(株)／(株)シモジマ\n(株)一陽パック'),
-       ('商品（ドライアイス等）', '日本液炭(株)'),
-       ('原水・電力', '越谷松伏水道企業団\n新電力（電力小売）')]
-for i, (h, b) in enumerate(sup):
-    yy = 2.05 + i * 1.3
-    rect(s, X0 + 0.1, yy, 2.25, 0.28, fill=NAVY, text=h, size=8.5, color=WHITE, bold=True)
-    rect(s, X0 + 0.1, yy + 0.28, 2.25, 0.85, fill=WHITE, text=b, size=8.5)
-cust = [('食品卸', '(株)日本アクセス\n三菱食品(株)\n(株)日本橋冷凍手島商店\n金木屋商事(株)'),
-        ('氷卸・業務用', '(株)クールテックサガワ\n(株)ニチレイ・アイス\n(株)小野田商店'),
-        ('その他', 'スーパー・飲食店・イベント等')]
-for i, (h, b) in enumerate(cust):
-    yy = 2.05 + [0, 1.45, 2.65][i]
-    hh = [1.05, 0.85, 0.6][i]
-    rect(s, 8.65, yy, 2.55, 0.28, fill=NAVY, text=h, size=8.5, color=WHITE, bold=True)
-    rect(s, 8.65, yy + 0.28, 2.55, hh, fill=WHITE, text=b, size=8.5)
-# 対象会社内部
-rect(s, 3.25, 2.05, 4.9, 0.3, fill=NAVY, text='越谷工場（埼玉県越谷市・平方工業団地）', size=10, color=WHITE, bold=True)
-proc = ['純水製造', 'アイス缶\n凍結', '揚氷\n（角氷）', '加工・袋詰', '冷蔵保管']
-for i, p_ in enumerate(proc):
-    rect(s, 3.3 + i * 0.97, 2.45, 0.9, 0.62, fill=WHITE, line=BLUE, text=p_, size=8.5, bold=True, color=NAVY)
-    if i < 4:
-        arrow(s, 3.3 + i * 0.97 + 0.9, 2.68, 0.07, 0.14, fill=BLUE, direction='right')
-text_box(s, 3.3, 3.12, 4.8, 0.4, '製氷設備4台（日産40トン）・袋詰砕氷設備（日産2,500ケース）・冷蔵設備（F級1,000トン）', size=8, color=DGRAY, align=PP_ALIGN.CENTER)
-rect(s, 3.25, 3.6, 2.4, 0.3, fill=NAVY, text='松戸営業所（千葉県松戸市）', size=9, color=WHITE, bold=True)
-rect(s, 3.25, 3.9, 2.4, 0.62, fill=WHITE, text='角氷・加工氷・凍氷雑品の販売拠点\n従業員5名', size=8.5)
-rect(s, 5.75, 3.6, 2.4, 0.3, fill=NAVY, text='商品販売・冷蔵保管', size=9, color=WHITE, bold=True)
-rect(s, 5.75, 3.9, 2.4, 0.62, fill=WHITE, text='ドライアイス等の商品販売\n冷蔵庫での寄託物品の保管', size=8.5)
-# 売上構成
-sales_tbl = [['拠点別売上（26/3期）', '千円', '構成比']]
-tot = sum(x[3] for x in SITE_SALES_67)
-for nm, _, _, sv, _, _, _ in SITE_SALES_67[1:]:
-    sales_tbl.append([nm, f'{rk(sv):,}', fp(sv / tot)])
-table(s, 3.25, 4.65, [2.4, 1.3, 1.2], sales_tbl, row_h=0.26, size=8.5, num_cols={1, 2}, hdr_size=8.5)
-text_box(s, 3.25, 5.48, 4.9, 0.45, '出所：売上高等の事業所別内訳書（第67期）。登記上の本店（越谷市蒲生寿町）は管理のみ', size=7.5, color=DGRAY)
-# 矢印とラベル
-arrow(s, 2.84, 3.25, 0.24, 0.36, fill=BLUE)
-text_box(s, 2.83, 2.25, 0.26, 0.9, '仕\n入', size=8.5, bold=True, color=BLUE, align=PP_ALIGN.CENTER)
-arrow(s, 8.31, 3.25, 0.24, 0.36, fill=BLUE)
-text_box(s, 8.3, 2.25, 0.26, 0.9, '販\n売', size=8.5, bold=True, color=BLUE, align=PP_ALIGN.CENTER)
-# 下段：外注・委託
-rect(s, 3.1, 6.2, 5.2, 0.9, fill=GRAY)
-line(s, 3.1, 6.2, 8.3, 6.2, NAVY, 3)
-text_box(s, 3.1, 6.23, 5.2, 0.26, [[('主要外注・委託先', {'bold': True, 'size': 11, 'color': NAVY})]], align=PP_ALIGN.CENTER)
-text_box(s, 3.2, 6.52, 5.0, 0.55, ['配送委託：倉橋運送・鴻池運輸(株) 等（運賃 26/3期 27,570千円）', '人材派遣：(株)ヒューマンアイ・(株)スタッフサービス 等（繁忙期の製造要員）'], size=8.5)
-arrow(s, 5.55, 6.07, 0.3, 0.13, fill=BLUE, direction='tri')
-text_box(s, 8.55, 6.2, 2.75, 0.9, ['【取引条件】', '販売：月末締め翌月末回収（掛売99%）', '仕入・外注：月末締め翌月20日払い'], size=8, color=DGRAY)
-text_box(s, X0, 6.2, 2.45, 0.9, ['※(株)日本橋冷凍手島商店は販売先かつ資材の仕入先。', '※(株)小野田商店との資本・人的関係は要確認。'], size=7.5, color=DGRAY)
+# ================================================================ 主要販売先（テンプレ14を転用）
+s = t(14)
+drop(s, 10)
+ref = paste_ref(wb, '取引先')
+yb = paste(s, ref, 0.34, 1.55, 11.0, 0.75, target=4.2)
+note(s, 0.34, yb + 0.15, 11.0, ['※取引先別の年間売上高は未受領のため、期末売掛金残高（月末締め翌月末回収）で代替。構成比は期末売掛金合計に対する比率。取引先別売上高はデータルームにて開示予定。',
+                                '※26/3期の勘定科目内訳書は上位先の合計が残高を1,724千円上回るため、その他は残高との差額で表示（(株)小野田商店の計上区分は要確認）。'], size=7.5)
+frame(s, '主要販売先（期末売掛金残高）', BZ, f'大手食品卸の(株)日本アクセス・三菱食品(株)をはじめ、食品卸・氷卸との継続的な取引関係を有する。'
+                                            f'上位7社で期末売掛金の{pct(v("取引先", "K21"))}を占め、特定先への過度な依存はない。')
 
-# ============================================================ 12 純氷の製造工程
-s = D.new('純氷の製造工程', BZ,
-          'ろ過した純水をアイス缶に注ぎ、低温のブラインで約48時間かけてゆっくり凍らせる伝統製法を採用。空気で撹拌しながら不純物を中心に集めて除去するため、透明度が高く硬く溶けにくい純氷ができる。')
-steps = [('①', '原水・純水製造', '原水を自社の純水装置でろ過。1964年にイオン交換方式、1990年に逆浸透膜（RO）ろ過装置を導入'),
-         ('②', '注水', '純水をアイス缶（製氷缶）へ注水し、缶グリッドごとブライン槽へ'),
-         ('③', '凍結', '約－12℃のブラインで約48時間かけて凍結。空気撹拌で不純物を中央に集めて吸い取る'),
-         ('④', '揚氷・脱缶', '約135kgの角氷として揚氷。氷の基本となる製品'),
-         ('⑤', '加工・袋詰', 'カット・砕氷・袋詰（キングアイス1.1kg〜）、手切りのダイヤアイス、板氷 等'),
-         ('⑥', '保管・出荷', '冷蔵設備で保管し、自社便・委託便で配送')]
-for i, (no, h, b) in enumerate(steps):
-    xx = X0 + i * 1.83
-    rect(s, xx, 1.65, 1.78, 0.48, fill=NAVY if i % 2 == 0 else BLUE, shape=MSO_SHAPE.CHEVRON if i else MSO_SHAPE.PENTAGON,
-         text=f'{no} {h}', size=9.5, color=WHITE, bold=True)
-    photo(s, f'proc_{i + 1}', xx + 0.05, 2.25, 1.65, 1.2, h + '（king-ice.com/junhyo.html）', IMG)
-    rect(s, xx + 0.05, 3.55, 1.65, 1.35, fill=WHITE, line=LINE, text=b, size=8.5, align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP)
-sub_head(s, X0, 5.08, 6, '主要設備（法人事業概況説明書）')
-eq = [['設備', '台数', '能力']] + [list(e) for e in EQUIPMENT_MAIN]
-table(s, X0, 5.42, [1.7, 0.8, 1.6], eq, row_h=0.3, size=9.5)
-rect(s, 4.85, 5.1, 6.45, 1.95, fill=LBLUE)
-text_box(s, 5.0, 5.18, 6.2, 1.85, [
-    [('純氷の特徴（同社公式サイト等の公開情報）', {'bold': True, 'size': 10.5, 'color': NAVY})],
-    [('・結晶の並びが規則的で透明度が高く、硬く割れにくい', {'size': 9.5})],
-    [('・熱が伝わりにくく溶けにくい、溶け方が一定で飲料の味を損ねにくい', {'size': 9.5})],
-    [('・料亭・日本料理店などの飲食店や、ぶっかき氷・ロックアイス用途で使用', {'size': 9.5})],
-    [('・自社ブランド「キングアイス」（1.1kg／2kg／3kg袋、板氷、かき氷用キューブ 等）', {'size': 9.5})]])
-footnote(s, '※原水の取水方法（上水道か地下水か）、製氷缶の数量・1回あたり生産量、稼働率は要確認。', y=7.2)
+# ================================================================ 主要仕入先・主要経費（テンプレ15を転用）
+s = t(15)
+drop(s, 3)
+ref = paste_ref(wb, '仕入先')
+yb = paste(s, ref, 0.34, 1.55, 7.2, 0.78, target=3.0)
+note(s, 0.34, yb + 0.3, 7.2, ['※仕入先別の年間仕入高は未受領。第67期の勘定科目内訳書（買掛金）の期末残高で代替。'], size=7.5)
+ref2 = paste_ref(wb, '主要費用')
+y2 = yb + 0.72
+ib.section_bar(s, 0.34, y2, 7.2, '主要費用の推移', size=11, h=0.3)
+yb2 = paste(s, ref2, 0.34, y2 + 0.36, 7.2, 0.85)
+frame(s, '主要仕入先・主要経費', BZ, '仕入は包装資材（段ボール・袋）とドライアイス等の商品が中心。原価の主要項目は人件費・電力料・包装資材で、'
+                                     '販管費では配送運賃の比重が大きい。')
+comment(s, PL_HEAD, PL_BODY, 7.8, 1.55, 3.55, 5.5, [
+    '≪包装資材≫',
+    f'・原材料（段ボール・ビニール袋等）の仕入高は{k(v("CR", "I9"))}千円（26/3期）。',
+    '≪電力料≫',
+    f'・製氷・冷蔵の電力料は23/3期{k(power[0])}千円をピークに{k(power[3])}千円（26/3期）。新電力と契約（条件は要確認）。',
+    '≪配送運賃≫',
+    f'・自社便に加え運送会社へ委託。売上拡大に伴い{k(fre[0])}→{k(fre[3])}千円に増加。',
+    '≪外注・人材派遣≫',
+    f'・外注作業費{k(v("CR", "I24"))}千円（26/3期）。繁忙期は人材派遣で製造要員を補完。外注先別の内訳は要確認。',
+], head='Comment', body_dy=0.55)
 
-# ============================================================ 13 月別売上（季節性）
-mws = M.wb['月次売上']
-rm = M.ref['月次売上']
-months = [mws.cell(row=4, column=3 + j).value for j in range(12)]
-sales_m = [mws.cell(row=rm['凍氷'], column=3 + j).value for j in range(12)]
-store_m = [mws.cell(row=rm['保管料'], column=3 + j).value for j in range(12)]
-tot_m = mws.cell(row=rm['凍氷'], column=15).value
-summer = sum(sales_m[3:5])
-s = D.new('月別売上高（季節性）', BZ,
-          f'売上は気温に連動する季節性が高く、7〜8月の2か月で年間の{summer / tot_m * 100:.1f}%を占める。冬季（11〜2月）は売上が夏季の約1/4に落ち込む一方、冷蔵保管料が増加し閑散期の設備稼働を補っている。')
-bar_line_chart(s, X0, 1.6, 7.0, 3.6, months, [('売上（凍氷）', sales_m)], [('冷蔵保管料（右軸）', store_m, '0889C9', '#,##0')],
-               number_format='#,##0', bar_colors=(NAVY,))
-unit(s, 5.5, 1.45, 1.8)
-rows = [['', *months, '合計']]
-for k, nm in [('凍氷', '売上（凍氷）'), ('保管料', '保管料'), ('原材料仕入', '原材料仕入'), ('人件費', '人件費'), ('従事員数', '従事員数（人）')]:
-    vals = [mws.cell(row=rm[k], column=3 + j).value for j in range(12)]
-    tot = mws.cell(row=rm[k], column=15).value
-    rows.append([nm, *[f'{v:,}' for v in vals], f'{tot:,}' if tot else '-'])
-table(s, X0, 5.35, [1.25] + [0.62] * 12 + [0.78], rows, row_h=0.27, size=8, num_cols=set(range(1, 14)), hdr_size=8, bold_rows=[1])
-comment_box(s, 7.55, 1.6, 3.75, 3.6, [
-    ('季節性', [f'7月{sales_m[3]:,}千円・8月{sales_m[4]:,}千円がピーク。6〜9月の4か月で年間の{sum(sales_m[2:6]) / tot_m * 100:.1f}%。',
-             f'11〜2月は月14〜20百万円程度。']),
-    ('費用・人員', ['人件費は7月・12月に賞与支給で増加。従事員数は23〜26名でほぼ一定であり、繁忙期は人材派遣で補完。']),
-    ('冷蔵保管', [f'保管料は11〜12月に増加（12月{store_m[8]:,}千円）。年末商戦期の食品保管需要と推察。']),
-], size=8.5)
-footnote(s, '※出所：第67期（2026年3月期）法人事業概況説明書。単位：千円。', y=7.25)
+# ================================================================ 組織図
+s = t(17)
+frame(s, '組織図', ORG, '代表取締役の下、工場長が越谷工場の現場を統括する体制。松戸営業所に販売拠点を置き、経理・総務の一部は会計事務所に委託している。')
+set_box(shape_by_id(s, 72), ['株主総会'])
+set_box(shape_by_id(s, 30), ['小野田 洋', '代表取締役'])
+set_box(shape_by_id(s, 31), ['越谷工場', '工場長　S氏'])
+set_box(shape_by_id(s, 32), ['製造', 'H氏・M氏'])
+set_box(shape_by_id(s, 33), ['配送', 'K氏'])
+set_box(shape_by_id(s, 34), ['松戸営業所', '責任者　M氏'])
+set_box(shape_by_id(s, 35), ['販売', '従業員　5名'])
+set_box(shape_by_id(s, 39), ['営業', 'M氏'])
+set_box(shape_by_id(s, 40), ['営業', '1名'])
+set_box(shape_by_id(s, 41), ['管理', 'C氏・S氏'])
+set_box(shape_by_id(s, 42), ['財務・経理', '一部外部委託'])
+set_box(shape_by_id(s, 54), ['品質検査', '代表者が担当'])
+drop(s, 49, 50, 19, 20)
+place(shape_by_id(s, 2), 3.86, 5.0, 0.0, 0.56)
+set_box(shape_by_id(s, 82), ['【人員構成】', '2026年3月期末', '役員　：1名', '従業員：24名', '合計　：25名'])
+place(shape_by_id(s, 82), 0.44, 1.75, 2.0, 1.4)
+note(s, 0.34, 7.2, 11.0, ['※図中の氏名はイニシャル表記。役割分担は受領資料に基づく。従業員名簿（年齢・勤続・資格・雇用形態）は未受領のため、データルームにて開示予定。'], size=7.5)
 
-# ============================================================ 14 主要販売先
-tws = M.wb['取引先']
-rt = M.ref['取引先']
-s = D.new('主要販売先（期末売掛金残高）', BZ,
-          '大手食品卸の(株)日本アクセス・三菱食品(株)をはじめ、食品卸・氷卸との継続的な取引関係を有する。上位7社で期末売掛金の約7割を占め、特定先への過度な依存はない。')
-unit(s, 9.4, 1.48, 1.9)
-rows = [['取引先', *[f'{p}\n残高' for p in PS], '26/3期\n構成比']]
-order_ = ['(株)日本橋冷凍手島商店', '(株)日本アクセス', '三菱食品(株)', '金木屋商事(株)', '(株)小野田商店', '(株)クールテックサガワ', '(株)ニチレイ・アイス', '(株)双日食品']
-for i, nm in enumerate(order_):
-    r_ = rt[nm]
-    rows.append([f'{i + 1}. {nm}', *[fk(tws.cell(row=r_, column=c).value) for c in (3, 5, 7, 9)], fp(tws.cell(row=r_, column=10).value)])
-rows.append(['その他（複数社）', *[fk(tws.cell(row=rt['その他'], column=c).value) for c in (3, 5, 7, 9)], fp(tws.cell(row=rt['その他'], column=10).value)])
-rows.append(['期末売掛金 合計', *[fk(tws.cell(row=rt['合計'], column=c).value) for c in (3, 5, 7, 9)], '100.0%'])
-table(s, X0, 1.72, [3.3, 1.45, 1.45, 1.45, 1.45, 1.3], rows, row_h=0.36, size=10, num_cols={1, 2, 3, 4, 5},
-      bold_rows=[len(rows) - 1], fill_rows={len(rows) - 1: LBLUE}, hdr_size=9)
-top7 = sum(tws.cell(row=rt[n], column=9).value for n in order_[:7]) / tws.cell(row=rt['合計'], column=9).value
-footnote(s, ['※取引先別の売上高データは未受領のため、期末売掛金残高（月末締め翌月末回収）を取引規模の代理指標として表示。取引先別売上高はデータルームにて開示予定。',
-             f'※26/3期の上位7社の残高構成比は{top7 * 100:.1f}%。23/3〜25/3期は受領資料、26/3期は勘定科目内訳書による。',
-             '※26/3期の内訳書は上位先の合計が残高を1,724千円上回るため、その他は残高との差額で表示（(株)小野田商店の計上区分は要確認）。'], y=6.25)
+# ================================================================ 株主及び役員
+s = t(18)
+drop(s, 6, 11)
+frame(s, '株主及び役員', ORG, '代表取締役の小野田洋氏が発行済株式の100%を保有するオーナー企業。取締役会・監査役は設置しておらず、株式の譲渡には株主総会の承認を要する。')
+place(shape_by_id(s, 2), 0.34, 1.62)
+yb = paste(s, paste_ref(wb, '株主'), 0.85, 2.08, 9.6, 0.78)
+place(shape_by_id(s, 3), 0.34, yb + 0.35)
+yb2 = paste(s, paste_ref(wb, '取締役'), 0.85, yb + 0.8, 9.6, 0.78)
+note(s, 0.34, yb2 + 0.25, 11.0, ['※発行済株式数は登記上22,000株。決算書の株主資本等変動計算書注記（200株）・法人税申告書別表二（220株）と記載が異なるため、株主名簿・定款で確認中（要確認）。',
+                                 '※株券発行会社（定款の定め）のため、株式譲渡には株券の交付を要する。株券の現存状況は要確認。'], size=7.5)
 
-# ============================================================ 15 主要仕入先・経費支払先
-uws = M.wb['仕入先']
-ru = M.ref['仕入先']
-s = D.new('主要仕入先・主要経費', BZ,
-          '仕入は包装資材（段ボール・袋）とドライアイス等の商品が中心。原価の主要項目は人件費・電力料・原材料で、販管費では配送運賃の比重が大きい。')
-sub_head(s, X0, 1.55, 5, '主要仕入先（26/3期末 買掛金残高）')
-rows = [['仕入先', '内容', '残高(千円)', '構成比']]
-r_ = 5
-while uws.cell(row=r_, column=2).value and r_ < ru['ap_total']:
-    rows.append([uws.cell(row=r_, column=2).value, uws.cell(row=r_, column=3).value, fk(uws.cell(row=r_, column=4).value), fp(uws.cell(row=r_, column=5).value)])
-    r_ += 1
-rows.append(['買掛金 合計', '', fk(uws.cell(row=ru['ap_total'], column=4).value), '100.0%'])
-table(s, X0, 1.88, [2.3, 1.75, 0.95, 0.7], rows, row_h=0.32, size=9, num_cols={2, 3}, bold_rows=[len(rows) - 1], fill_rows={len(rows) - 1: LBLUE})
-sub_head(s, 6.3, 1.55, 5, '主要経費支払先（26/3期末 未払金残高）')
-rows = [['支払先', '内容', '残高(千円)']]
-r_ = ru['payees']
-for _ in range(8):
-    rows.append([uws.cell(row=r_, column=2).value, uws.cell(row=r_, column=3).value, fk(uws.cell(row=r_, column=4).value)])
-    r_ += 1
-table(s, 6.3, 1.88, [2.6, 1.45, 0.95], rows, row_h=0.32, size=8.5, num_cols={2})
-sub_head(s, X0, 5.0, 6, '主要費用の推移（千円）')
-cost = [['費目', *PS]]
-for nm, f in [('原材料仕入高（包装資材等）', lambda c: M.rv('CR', '原材料費/原材料仕入高', c)),
-              ('労務費＋販管人件費', lambda c: M.rv('CR', 'g_労務費', c) + M.rv('SGA', 'g_給与関係費', c)),
-              ('電力料（動力費・製造＋販管）', lambda c: M.rv('CR', '製造経費/動力費', c) + M.rv('SGA', '資産管理費/動力費', c)),
-              ('配送運賃', lambda c: M.rv('SGA', '輸送関係費/運賃', c)),
-              ('外注作業費', lambda c: M.rv('CR', '外注加工費/外注作業費', c))]:
-    cost.append([nm, *[fk(f(c)) for c in C4]])
-table(s, X0, 5.32, [3.0, 1.25, 1.25, 1.25, 1.25], cost, row_h=0.28, size=9, num_cols={1, 2, 3, 4})
-comment_box(s, 8.55, 5.0, 2.75, 2.1, [('コスト構造', ['電力料は23/3期に42,894千円まで上昇後、24/3期以降は32〜34百万円台。', '配送運賃は売上拡大に伴い増加傾向。'])], size=8, title='Point', title_size=11)
+# ================================================================ 拠点概要
+s = t(20)
+drop(s, 7, 10, 11, 16)
+frame(s, '拠点概要', ORG, '越谷市平方工業団地内の自社工場（土地2,145㎡・建物約2,094㎡）を中核拠点とし、千葉県松戸市に販売拠点の営業所を賃借している。')
+set_text(shape_by_id(s, 2), '拠点')
+yb = paste(s, paste_ref(wb, '拠点(本社等)'), 0.34, 2.1, 11.0, 0.83)
+n1 = ib.photo_tile(s, os.path.join(PH, '工場外観.jpg'), 0.34, yb + 0.3, 5.3, 3.3, '越谷工場（外観）')
+n2 = ib.photo_tile(s, os.path.join(PH, '所在地図.jpg'), 6.02, yb + 0.3, 5.3, 3.3, '所在地（越谷工場・松戸営業所）')
+if not (n1 or n2):
+    comment(s, PL_HEAD, PL_BODY, 0.34, yb + 0.35, 11.0, 7.05 - yb - 0.35, [
+        '≪越谷工場（自社所有）≫',
+        f'・平方工業団地内の土地2,145㎡に1991年築の鉄筋コンクリート造の工場棟。製氷設備4台（日産40トン）・冷蔵設備（F級1,000トン）を備え、製造・加工・保管・配送の中核。売上高{k(v("月別売上", "C26"))}千円、従業員19名。',
+        '≪松戸営業所（賃借）≫',
+        f'・千葉県松戸市の店舗（延床400㎡）を年1,200千円で賃借。角氷・加工氷等を販売し、売上高{k(v("月別売上", "C27"))}千円、従業員5名。',
+        '≪本店・駐車場≫',
+        '・登記上の本店は代表者住所（越谷市蒲生寿町）。隣接の駐車場を代表者から年545千円で賃借（譲渡後の継続条件は要協議）。',
+    ], head='拠点の状況', body_dy=0.55)
+note(s, 0.34, 7.2, 11.0, ['※延床面積は売上高等の事業所別内訳書の記載。越谷工場建物は登記上2,093.87㎡で相違あり（要確認）。工場の外観・内観写真は受領後に掲載。'], size=7.5)
 
-# ============================================================ 16 特徴・強み
-s = D.use(16)
-texts = {'テキスト ボックス 13': ('65年超の業歴を持つ純氷メーカー・自社ブランド「キングアイス」',
-                              '1960年創業。自社の純水設備（イオン交換・RO膜）でろ過した水を、アイス缶で約48時間かけて凍結する伝統製法により、透明度が高く溶けにくい純氷を製造。角氷から袋氷・手切りキューブまで幅広い商品を自社で加工する。'),
-         'テキスト ボックス 19': ('大手食品卸を含む首都圏の安定した販路と一貫供給体制',
-                              '(株)日本アクセス・三菱食品(株)等の食品卸や氷卸と継続取引（掛売99%）。製氷・加工・冷蔵保管・配送を自社で一貫して担い、夏季の需要ピークにも製氷能力日産40トン・冷蔵1,000トンの設備で対応する。'),
-         'テキスト ボックス 28': ('猛暑による需要拡大と設備・物流網を活かした拡張余地（仮説）',
-                              '夏季需要が売上の約3割を占め、猛暑の長期化は追い風。冬季は冷蔵保管で稼働を補完しており、物流・食品関連の買手の販路・配送網との連携により、閑散期の稼働向上や取扱商品拡大の余地があると想定。')}
-for sh in s.shapes:
-    if sh.name in texts and sh.has_text_frame:
-        h, b = texts[sh.name]
-        ps = sh.text_frame.paragraphs
-        ps[0].runs[0].text = h
-        for r_ in ps[0].runs[1:]:
-            r_._r.getparent().remove(r_._r)
-        ps[1].runs[0].text = b
-        for r_ in ps[1].runs[1:]:
-            r_._r.getparent().remove(r_._r)
-        for p_ in ps[2:]:
-            p_._p.getparent().remove(p_._p)
-    if sh.name == 'タイトル 2':
-        set_runs_text(sh.text_frame, '特徴・強み・成長性')
+# ================================================================ 不動産詳細
+s = t(22)
+drop(s, 18, 22)
+frame(s, '不動産詳細', ORG, f'越谷工場の土地・建物を会社所有（固定資産税評価額：土地{k(land_ev)}千円・建物{k(bld_ev)}千円）。'
+                           '工場は日本政策金融公庫の担保に供されている。賃借は松戸営業所の店舗と代表者所有の駐車場のみ。')
+place(shape_by_id(s, 2), 0.34, 1.62)
+yb = paste(s, paste_ref(wb, '不動産(所有)'), 0.34, 2.08, 11.0, 0.72)
+place(shape_by_id(s, 3), 0.34, yb + 0.35)
+yb2 = paste(s, paste_ref(wb, '不動産(賃借) '), 0.34, yb + 0.8, 11.0, 0.72)
+note(s, 0.34, yb2 + 0.2, 11.0, ['※固定資産税評価額は2025年3月期時点の資料による（最新年度の評価証明書で要確認）。建物の簿価は会計上の減価償却を停止しているため固定資産税評価額を大きく上回る。',
+                                '※代表者個人所有の土地を栃木銀行・商工組合中央金庫の借入担保に提供している（会社資産ではないため上表に含まない。明細は要確認）。'], size=7.5)
 
-# ============================================================ 17 中扉
-D.use(20)
+# ================================================================ 保有設備一覧
+s = t(23)
+frame(s, '保有設備一覧', ORG, '製氷設備4台・袋詰砕氷設備・冷蔵設備を保有。機械は127件・取得価額375百万円に上り、近年も製氷設備の更新・修繕投資を継続している。')
+ib.section_bar(s, 0.34, 1.62, 11.0, '償却資産の状況（第67期 減価償却計算書）', size=12, h=0.34)
+yb = paste(s, paste_ref(wb, '設備'), 0.34, 2.05, 11.0, 0.85)
+ib.section_bar(s, 0.34, yb + 0.3, 11.0, '主要設備', size=12, h=0.34)
+yb2 = paste(s, IDX['EQ_MAIN'], 0.34, yb + 0.72, 8.0, 0.85)
+note(s, 0.34, yb2 + 0.2, 11.0, ['※建物（越谷工場、1991年3月取得）は当期の償却を行っておらず、当期償却不足額21,745千円。償却資産の明細（185件）はデータルームにて開示予定。主要設備の更新時期・修繕計画は要確認。'], size=7.5)
 
-# ============================================================ 18 組織図
-s = D.new('組織図', ORG, '代表取締役の下、工場長が越谷工場・松戸営業所の現場を統括する体制。経理・総務は一部を外部（会計事務所）に委託している。')
-rect(s, 3.6, 1.6, 2.6, 0.5, fill=NAVY, shape=MSO_SHAPE.ROUNDED_RECTANGLE, text='株主総会', size=12, color=WHITE, bold=True)
-rect(s, 3.6, 2.35, 2.6, 0.62, fill=NAVY, shape=MSO_SHAPE.ROUNDED_RECTANGLE, text=[[('代表取締役', {'size': 12, 'bold': True, 'color': WHITE})], [('小野田 洋', {'size': 10, 'color': WHITE})]])
-rect(s, 3.6, 3.22, 2.6, 0.55, fill=BLUE, shape=MSO_SHAPE.ROUNDED_RECTANGLE, text=[[('工場長', {'size': 11, 'bold': True, 'color': WHITE})], [('S氏（本社・工場・松戸営業所の責任者）', {'size': 7.5, 'color': WHITE})]])
-for y1, y2 in [(2.1, 2.35), (2.97, 3.22), (3.77, 4.05)]:
-    line(s, 4.9, y1, 4.9, y2, NAVY, 1.25)
-line(s, 1.15, 4.05, 9.5, 4.05, NAVY, 1.25)
-depts = [('財務・経理・総務', '2名（C氏・S氏）\n※一部外部委託', 0.35), ('営業部門', '1名（M氏）', 2.55),
-         ('越谷工場', '製造・配送・品質検査', 4.75), ('松戸営業所', '責任者（M氏）\n従業員5名', 8.4)]
-for nm, sub, xx in depts:
-    w_ = 3.3 if nm == '越谷工場' else 1.95
-    line(s, xx + w_ / 2, 4.05, xx + w_ / 2, 4.3, NAVY, 1.25)
-    rect(s, xx, 4.3, w_, 0.4, fill=NAVY, shape=MSO_SHAPE.ROUNDED_RECTANGLE, text=nm, size=10.5, color=WHITE, bold=True)
-    if nm != '越谷工場':
-        rect(s, xx, 4.75, w_, 0.55, fill=WHITE, line=LINE, text=sub, size=8.5)
-sub3 = [('製造部門', '揚氷（H氏）\n加工（M氏）'), ('配送部門', 'K氏'), ('品質検査', '代表者が担当')]
-for i, (nm, sub) in enumerate(sub3):
-    xx = 4.75 + i * 1.12
-    line(s, xx + 0.5, 4.7, xx + 0.5, 4.85, NAVY, 1)
-    rect(s, xx, 4.85, 1.05, 0.34, fill=BLUE, shape=MSO_SHAPE.ROUNDED_RECTANGLE, text=nm, size=8.5, color=WHITE, bold=True)
-    rect(s, xx, 5.22, 1.05, 0.52, fill=WHITE, line=LINE, text=sub, size=8)
-rect(s, 7.0, 1.6, 4.3, 1.75, fill=LBLUE)
-text_box(s, 7.15, 1.68, 4.05, 1.62, [
-    [('【人員構成】（2026年3月期末）', {'bold': True, 'size': 11, 'color': NAVY})],
-    [('　役員　　　　　　：1名（代表取締役）', {'size': 10})],
-    [('　従業員（越谷工場）：19名', {'size': 10})],
-    [('　従業員（松戸営業所）：5名', {'size': 10})],
-    [('　合計　　　　　　：25名', {'size': 10, 'bold': True})],
-    [('　※月別従事員数は23〜26名で推移', {'size': 8.5, 'color': DGRAY})]])
-footnote(s, ['※図中の氏名はイニシャル表記。役割分担は受領資料に基づく。品質検査部門は代表者が担当しているため、譲渡後の引継ぎ方法は要確認。',
-             '※従業員一覧（年齢・勤続年数・資格・雇用形態）は未受領のため、データルームにて開示予定。'], y=6.05)
+# ================================================================ 許認可・取引金融機関（追加）
+s = s_lic
+for sh in list(s.shapes):
+    if sh.has_table or sh.shape_type == 13:
+        sh._element.getparent().remove(sh._element)
+frame(s, '許認可・取引金融機関', ORG, '氷雪製造業・氷雪販売業の食品営業許可を取得。借入は日本政策金融公庫・地方銀行・信用金庫等の6行庫で、代表者が連帯保証・担保提供を行っている。')
+ib.section_bar(s, 0.34, 1.62, 11.0, '許認可', size=12, h=0.34)
+yb = paste(s, paste_ref(wb, '許認可'), 0.34, 2.05, 11.0, 0.85)
+ib.section_bar(s, 0.34, yb + 0.3, 11.0, '借入金の状況（2026年3月期末）', size=12, h=0.34)
+yb2 = paste(s, IDX['LOAN_RANGE'], 0.34, yb + 0.72, 11.0, 0.8)
+note(s, 0.34, yb2 + 0.12, 11.0, ['※出所：第67期 借入金及び支払利息の内訳書。上記のほか埼玉県信用保証協会への保証料559,650円を支払利息に含む。借入条件（返済期限・金利・保証）は要確認。'], size=7.5)
 
-# ============================================================ 19 株主及び役員
-s = D.new('株主及び役員', ORG, '代表取締役の小野田洋氏が発行済株式の100%を保有するオーナー企業。取締役会・監査役は設置しておらず、株式の譲渡には株主総会の承認を要する。')
-sub_head(s, X0, 1.6, 5, '株主')
-table(s, X0, 1.95, [0.5, 2.2, 1.8, 1.6, 1.0, 3.8], [['No', '氏名', '役職', '保有株式数', '比率', '備考'],
-                                                  ['1', '小野田 洋', '代表取締役', '22,000株', '100.0%', '株式数は登記記載（要確認※）'],
-                                                  ['', '合計', '', '22,000株', '100.0%', '']],
-      row_h=0.34, size=10, num_cols={3, 4}, label_cols=0, bold_rows=[2], fill_rows={2: LBLUE})
-sub_head(s, X0, 3.25, 5, '役員')
-ows = M.wb['取締役']
-table(s, X0, 3.6, [0.5, 2.2, 1.8, 1.6, 2.0, 2.8], [['No', '氏名', '役職', '役員報酬(年)', 'M&A後の進退', '備考'],
-                                                  ['1', '小野田 洋', '代表取締役', f'{fk(ows["E5"].value)}千円', '引継ぎ後に退任予定', '2020年5月重任']],
-      row_h=0.34, size=10, num_cols={3}, label_cols=0)
-rect(s, X0, 4.55, 5.2, 1.1, fill=GRAY)
-text_box(s, X0 + 0.12, 4.6, 5.0, 1.05, ['株券発行有無：株券発行会社（定款の定め）', '譲渡承認機関：株主総会', '取締役会　　：設置なし', '監査役　　　：設置なし'], size=10)
-footnote(s, ['※発行済株式数は登記上22,000株。決算書の株主資本等変動計算書注記（200株）・法人税申告書別表二（220株）と記載が異なるため、株主名簿・定款で確認中（要確認）。',
-             '※株券発行会社のため、株式譲渡には株券の交付を要する。株券の現存状況は要確認。'], y=6.4)
+# ================================================================ 財務情報詳細（財務入力シートをそのまま貼る）
+s = t(25)
+drop(s, 6, 7)
+yb = paste(s, "'BS(借方)'!B3:F61", 0.34, 1.52, 5.42, 0.68, target=5.7)
+paste(s, "'BS (貸方)'!B3:F25", 5.88, 1.52, 5.42, 0.68, target=2.9, hmax=0.62)
+ref_na = "'BS (貸方)'!B34:F51"
+hna = min(0.62, 2.3 / range_height(wb, ref_na))
+paste_range(s, wb, ref_na, 5.88, yb - range_height(wb, ref_na, hscale=hna), 5.42, hscale=hna, fscale=0.68)
+frame(s, '貸借対照表', FIN, f'借入金の約定返済と利益の積上げにより純資産は4期で{k(v("BS (貸方)", "C50"))}千円から{k(v("BS (貸方)", "F50"))}千円へ増加。'
+                           '工場建物は会計上の償却を停止しており4期とも同額。')
 
-# ============================================================ 20 拠点概要
-s = D.new('拠点概要', ORG, '越谷市平方工業団地内の自社工場（土地2,145㎡・建物約2,094㎡）を中核拠点とし、千葉県松戸市に販売拠点の営業所を賃借している。')
-rows = [['拠点', '所在地', '用途', '所有／賃借', '従業員', '延床面積']]
-rows += [['越谷工場', '埼玉県越谷市大字平方999-4', '製氷・加工・冷蔵保管・配送', '所有（土地・建物）', '19名', '2,065㎡'],
-         ['松戸営業所', '千葉県松戸市稔台5-14-3', '角氷・加工氷等の販売', '賃借（年1,200千円）', '5名', '400㎡'],
-         ['本店（登記）', '埼玉県越谷市蒲生寿町19-15', '管理（代表者住所）', '—', '1名', '10㎡'],
-         ['駐車場', '埼玉県越谷市蒲生寿町19-15', '駐車場', '代表者から賃借（年545千円）', '—', '—']]
-table(s, X0, 1.62, [1.4, 2.9, 2.3, 2.05, 0.8, 1.5], rows, row_h=0.34, size=9.5, num_cols={4, 5})
-photo(s, 'factory', X0, 3.45, 5.35, 3.4, '越谷工場（外観）（king-ice.com/corporate.html）', IMG)
-photo(s, 'map', 5.95, 3.45, 5.35, 3.4, '所在地地図（越谷工場・松戸営業所）', IMG)
-footnote(s, '※延床面積は事業所別内訳書の記載。越谷工場建物は登記上2,093.87㎡で差異あり（要確認）。本店所在地は代表者住所と同一で、実務上の拠点は越谷工場。', y=7.05)
+for n_, ref, cid, lead, lines in [
+    (26, 'PL!B2:J56', 6, f'売上総利益率は2023年3月期の{pct(ph_("C7"))}から2024年3月期以降は{pct(ph_("F7"))}〜{pct(ph_("D7"))}へ回復。営業外では年{k(v("PL", "I29"))}千円の支払利息を負担。',
+     ['≪売上高≫', '・製氷・加工氷・商品の売上に、冷蔵保管料を加えたもの。決算書では支払手数料を一般業務費として販管費の外に表示しているが、本表では販管費に含めている。',
+      '≪売上原価≫', '・当期製品製造原価（「製造原価報告書」）と商品（ドライアイス等）の売上原価。',
+      '≪営業外損益≫', '・65期の雑収入8,482千円・雑損5,192千円の内容は要確認。67期の雑収入には保険満期返戻金2,296千円（非経常）を含む。',
+      '≪法人税等≫', '・67期は繰越欠損金を使用。特別損益は4期ともなし。']),
+    (27, 'CR!B4:J51', 3, '製造原価の中心は労務費・電力料（動力費）・包装資材。2024年3月期以降は製氷設備の更新に伴い減価償却費が増加している。',
+     ['≪材料費≫', '・段ボール・ビニール袋等の包装資材。', '≪労務費≫', f'・26/3期は臨時的な退職給与{k(v("CR", "I17"))}千円を含む（要確認）。',
+      '≪動力費≫', f'・製氷・冷蔵の電力料。23/3期{k(v("CR", "C39"))}千円→26/3期{k(v("CR", "I39"))}千円。',
+      '≪減価償却費≫', f'・23/3期はほぼ未計上。26/3期{k(v("CR", "I42"))}千円。']),
+    (28, 'SGA!B2:J40', 3, '販管費の中心は配送運賃を含む輸送関係費と人件費。運賃は売上拡大に伴い増加傾向。',
+     ['≪人件費≫', '・役員報酬は代表者1名の7,200千円／年で4期同額。', '≪運賃・車輛費≫', f'・配送運賃{k(v("SGA", "I25"))}千円（26/3期）。自社便と運送会社への委託を併用。',
+      '≪地代家賃≫', '・松戸営業所の店舗賃料1,200千円と代表者からの駐車場賃借545千円。', '≪支払手数料≫', '・66期から計上。内容は要確認。'])]:
+    s = t(n_)
+    paste(s, ref, 0.34, 1.5, 7.3, 0.6, target=5.75)
+    place(shape_by_id(s, 2), 7.8, 1.45, 3.55, 6.0)
+    place(shape_by_id(s, cid), 7.8, 2.05, 3.53, 5.3)
+    fill_comment(shape_by_id(s, cid), lines, body=8.5, head=9.5, after=2)
+    set_lead(s, lead)
 
-# ============================================================ 21 不動産概況
-s = D.new('不動産概況', ORG, f'越谷工場の土地・建物を会社所有。固定資産税評価額は土地{fk(land_ev)}千円・建物{fk(bld_ev)}千円で、工場は日本政策金融公庫の担保に供されている。')
-sub_head(s, X0, 1.6, 5, '所有不動産')
-zws = M.wb['不動産(所有)']
-rows = [['No', '種類', '区分', '所在地', '面積', '26/3期末簿価(千円)', '固定資産税評価額(千円)', '担保']]
-rows.append(['1', '土地', '越谷工場', '埼玉県越谷市大字平方999-4', '2,145.18㎡', fk(zws['F5'].value), fk(zws['G5'].value), '日本公庫'])
-rows.append(['2', '建物', '越谷工場', '同上', '2,093.87㎡', fk(zws['F6'].value), fk(zws['G6'].value), '日本公庫'])
-rows.append(['', '合計', '', '', '', fk(zws['F7'].value), fk(zws['G7'].value), ''])
-table(s, X0, 1.95, [0.45, 0.7, 1.0, 2.9, 1.15, 1.6, 1.85, 1.25], rows, row_h=0.36, size=9.5, num_cols={4, 5, 6}, label_cols=0,
-      bold_rows=[3], fill_rows={3: LBLUE})
-sub_head(s, X0, 3.65, 5, '賃借不動産')
-rows = [['No', '区分', '所在地', '貸主', '年間賃料(千円)', '備考'],
-        ['1', '店舗（松戸営業所）', '千葉県松戸市稔台5-14-3', '法人（第三者）', '1,200', ''],
-        ['2', '駐車場', '埼玉県越谷市蒲生寿町19-15', '代表者', '545', '代表者からの賃借'],
-        ['', '合計', '', '', '1,745', '']]
-table(s, X0, 4.0, [0.45, 1.8, 2.9, 1.6, 1.4, 2.75], rows, row_h=0.34, size=9.5, num_cols={4}, label_cols=0, bold_rows=[3], fill_rows={3: LBLUE})
-footnote(s, ['※固定資産税評価額は2025年3月期時点の資料による。最新年度の評価証明書は要確認。',
-             '※建物の簿価は会計上の減価償却を行っていないため、固定資産税評価額を大きく上回る（内訳書記載の簿価280,673千円とBS残高259,242千円にも差異あり・要確認）。',
-             '※代表者個人所有の土地を栃木銀行・商工組合中央金庫の借入担保に提供している（会社資産ではないため上表に含まない）。'], y=5.75)
+# ================================================================ Appendix
+s = t(30)
+yb = paste(s, paste_ref(wb, '沿革'), 0.49, 1.6, 10.71, 0.95)
+note(s, 0.49, yb + 0.12, 10.71, ['※1960〜1990年は同社公式サイト等の公開情報、1991・2008年は減価償却計算書、2012年以降は登記による。代表者の経歴は受領後に掲載。'], size=7.5)
+set_lead(s, '1960年に越谷で創業。早くから純水設備を導入し、品質にこだわった純氷の製造を65年以上にわたり継続している。')
+s = t(34)
+yb = paste(s, paste_ref(wb, 'その他補足'), 0.49, 1.6, 10.71, 0.9)
+set_lead(s, '取引条件・営業時間・取引金融機関等の補足情報。販売は月末締め翌月末回収、仕入・給与は翌月20日払い。')
+s = s_todo
+ib.set_title(s, '要確認事項・ネクストステップ')
+yb = paste(s, paste_ref(wb, 'その他'), 0.49, 1.55, 10.71, 0.85, target=5.6)
+set_lead(s, '以下は資料の追加受領・ヒアリングで確認を進めている事項。トップ面談前に確定させる事項を「高」としている。')
 
-# ============================================================ 22 保有設備
-s = D.new('保有設備', ORG, '製氷設備4台・袋詰砕氷設備・冷蔵設備を保有。機械は127件・取得価額375百万円に上り、近年も製氷設備の更新・修繕投資を継続している。')
-sub_head(s, X0, 1.6, 5, '主要設備')
-table(s, X0, 1.95, [2.0, 0.9, 1.9, 5.0], [['設備', '台数', '能力', '備考']] + [[*e, '法人事業概況説明書（第67期）'] for e in EQUIPMENT_MAIN],
-      row_h=0.34, size=10)
-sub_head(s, X0, 3.5, 5, '償却資産の状況（第67期 減価償却計算書）')
-dws = M.wb['減価償却']
-rows = [['科目', '件数', '取得価額', '期末簿価', '当期償却額', '当期償却不足額']]
-for r_ in range(5, 10):
-    rows.append([dws.cell(row=r_, column=2).value, f'{dws.cell(row=r_, column=3).value}件'] + [fk(dws.cell(row=r_, column=c).value) for c in (4, 5, 6, 7)])
-rr = M.row('減価償却', '合計')
-rows.append(['合計', '185件'] + [fk(dws.cell(row=rr, column=c).value) for c in (4, 5, 6, 7)])
-table(s, X0, 3.85, [1.8, 0.9, 1.7, 1.7, 1.7, 1.7], rows, row_h=0.32, size=10, num_cols={1, 2, 3, 4, 5}, bold_rows=[6], fill_rows={6: LBLUE})
-unit(s, 7.8, 3.6, 1.7)
-footnote(s, ['※建物（越谷工場、1991年3月取得）は当期の償却を行っておらず、当期償却不足額21,745千円。償却資産の明細（185件）はデータルームにて開示予定。',
-             '※主要設備の更新時期・修繕計画は要確認。'], y=6.25)
-
-# ============================================================ 23 許認可・取引金融機関
-s = D.new('許認可・取引金融機関', ORG, '氷雪製造業・氷雪販売業の食品営業許可を取得。借入は日本政策金融公庫・地方銀行・信用金庫等の6行庫で、代表者が連帯保証・担保提供を行っている。')
-sub_head(s, X0, 1.6, 5, '許認可')
-table(s, X0, 1.95, [3.0, 1.9, 1.6, 4.4], [['名称', '番号', '許可日', '備考']] + [list(l) for l in LICENSES], row_h=0.34, size=9.5)
-sub_head(s, X0, 3.15, 5, '借入金の状況（2026年3月期末）')
-lws = M.wb['借入金']
-rows = [['借入先', '期末残高(千円)', '支払利息(千円)', '担保・備考']]
-for r_ in range(5, M.row('借入金', '合計')):
-    nm = lws.cell(row=r_, column=2).value
-    if '保証協会' in nm:
-        continue
-    rows.append([nm, fk(lws.cell(row=r_, column=3).value), fk(lws.cell(row=r_, column=4).value), lws.cell(row=r_, column=5).value])
-rows.append(['保証料（埼玉県信用保証協会）', '-', fk(559650), '保証付融資あり'])
-rr = M.row('借入金', '合計')
-rows.append(['合計', fk(lws.cell(row=rr, column=3).value), fk(lws.cell(row=rr, column=4).value), ''])
-table(s, X0, 3.5, [3.0, 1.5, 1.5, 4.9], rows, row_h=0.3, size=9.5, num_cols={1, 2}, bold_rows=[len(rows) - 1], fill_rows={len(rows) - 1: LBLUE})
-
-# ============================================================ 24 中扉 財務
-D.use(55)
-
-
-# ============================================================ 25-28 財務詳細（4期）
-def fin_rows(sheet, keys_labels, cols=C4):
-    out = []
-    for key, lab in keys_labels:
-        out.append([lab, *[fk(M.rv(sheet, key, c)) for c in cols]])
-    return out
-
-
-# 貸借対照表
-s = D.new('貸借対照表', FIN, '借入金の返済進捗と利益の積上げにより、純資産は4期で19,818千円から49,288千円へ増加。')
-
-A = [('sub_cash', '（現金・預金）'), ('現金', '現金'), ('当座預金', '当座預金'), ('普通預金', '普通預金'), ('定期預金', '定期預金'), ('定期積金', '定期積金'),
-     ('諸掛金（生命保険積立）', '諸掛金（保険積立）'), ('sub_quick', '（当座資産）'), ('売掛金', '売掛金'), ('sub_inv', '（棚卸資産）'), ('棚卸商品', '商品'),
-     ('棚卸原材料', '原材料'), ('仕掛品', '仕掛品'), ('sub_oca', '（流動資産諸口）'), ('前渡金', '前渡金'), ('貸付金', '貸付金'), ('預け金', '預け金'),
-     ('未収金', '未収金'), ('前払費用', '前払費用'), ('流動資産合計', '流動資産合計'), ('sub_ppe', '（有形固定資産）'), ('建物', '建物'), ('構築物', '構築物'),
-     ('機械', '機械'), ('車両運搬具', '車両運搬具'), ('器具備品', '器具備品'), ('土地', '土地'), ('sub_intan', '（無形固定資産）'), ('sub_invest', '（投資等）'),
-     ('固定資産合計', '固定資産合計'), ('資産合計', '資産合計')]
-rows = [['資産の部', *PS]] + fin_rows('BS(借方)', A)
-bolds = [i + 1 for i, (k, _) in enumerate(A) if k.startswith('sub_') or '合計' in k]
-table(s, X0, 1.5, [1.65, 0.92, 0.92, 0.92, 0.92], rows, row_h=0.177, size=8, num_cols={1, 2, 3, 4}, bold_rows=bolds,
-      fill_rows={i + 1: LBLUE for i, (k, _) in enumerate(A) if '合計' in k}, hdr_size=8)
-Lb = [('sub_cl', '（流動負債）'), ('支払手形', '支払手形'), ('買掛金', '買掛金'), ('短期借入金', '短期借入金'), ('未払金', '未払金'), ('預り金', '預り金'),
-      ('仮受金', '仮受金'), ('税金引当金（未払法人税等）', '未払法人税等'), ('sub_fl', '（固定負債）'), ('長期借入金', '長期借入金'), ('負債合計', '負債合計'),
-      ('資本金', '資本金'), ('利益準備金', '利益準備金'), ('別途積立金', '別途積立金'), ('繰越利益剰余金', '繰越利益剰余金'), ('純資産合計', '純資産合計'),
-      ('負債純資産合計', '負債・純資産合計')]
-rows = [['負債・純資産の部', *PS]] + fin_rows('BS (貸方)', Lb)
-bolds = [i + 1 for i, (k, _) in enumerate(Lb) if k.startswith('sub_') or '合計' in k]
-table(s, 5.85, 1.5, [1.65, 0.92, 0.92, 0.92, 0.92], rows, row_h=0.177, size=8, num_cols={1, 2, 3, 4}, bold_rows=bolds,
-      fill_rows={i + 1: LBLUE for i, (k, _) in enumerate(Lb) if '合計' in k}, hdr_size=8)
-unit(s, 9.5, 1.3, 1.8)
-text_box(s, 5.85, 4.85, 5.33, 1.6, [[('【留意事項】', {'bold': True, 'size': 9, 'color': NAVY})],
-                                    [('・諸掛金は生命保険の積立金（67期：大同生命8,462千円・第一生命901千円）。', {'size': 8})],
-                                    [('・建物は会計上の減価償却を行っておらず、4期とも同額。', {'size': 8})],
-                                    [('・67期末の借入金461,024千円のうち代表者借入14,000千円、日本公庫の資本性ローン105,420千円。', {'size': 8})],
-                                    [('・資本金は2026年5月15日に10,000千円へ減資（登記）。', {'size': 8})],
-                                    [('・23/3〜25/3期は受領資料、26/3期は決算報告書による。', {'size': 8})]])
-
-# 損益計算書
-s = D.new('損益計算書', FIN, '売上総利益率は2023年3月期の16.2%から、2024年3月期以降は22〜26%へ回復して推移。')
-plws = M.wb['PL']
-rp = M.ref['PL']
-keys = [('売上高', '売上高'), ('売上', '　売上'), ('保管料', '　保管料'), ('受入手数料', '　受入手数料'), ('売上原価', '売上原価'), ('期首商品', '　期首商品棚卸高'),
-        ('商品仕入', '　商品仕入高'), ('期末商品', '　期末商品棚卸高'), ('製造原価', '　当期製品製造原価'), ('売上総利益', '売上総利益'), ('販管費', '販売費及び一般管理費'),
-        ('販管_給与関係費', '　給与関係費'), ('販管_資産管理費', '　資産管理費'), ('販管_輸送関係費', '　輸送関係費'), ('販管_交際販売関係費', '　交際販売関係費'),
-        ('販管_事務処理費', '　事務処理費'), ('販管_その他', '　税金公課・減価償却費'), ('支払手数料', '　支払手数料'), ('営業利益', '営業利益'), ('営業外収益', '営業外収益'),
-        ('受取利息', '　受取利息・配当金'), ('雑収入', '　雑収入'), ('営業外費用', '営業外費用'), ('支払利息', '　支払利息'), ('雑損', '　雑損'), ('経常利益', '経常利益'),
-        ('特別損失', '特別損益'), ('税引前', '税引前当期純利益'), ('法人税等', '法人税等'), ('当期純利益', '当期純利益')]
-rows = [['科目'] + sum([[p, '売上比'] for p in PS], [])]
-bolds, fills = [], {}
-for key, lab in keys:
-    vals = []
-    for vc in (3, 5, 7, 9):
-        v = plws.cell(row=rp[key], column=vc).value
-        if key == '受取利息':
-            v += plws.cell(row=rp['受取配当金'], column=vc).value
-        if key == '特別損失':
-            v = plws.cell(row=rp['特別利益'], column=vc).value - v
-        ratio = v / plws.cell(row=rp['売上高'], column=vc).value
-        vals += [fk(v), fp(ratio)]
-    rows.append([lab, *vals])
-    if not lab.startswith('　'):
-        bolds.append(len(rows) - 1)
-    if key in ('売上総利益', '営業利益', '経常利益', '当期純利益'):
-        fills[len(rows) - 1] = LBLUE
-t = table(s, X0, 1.5, [2.1] + [1.05, 0.62] * 4, rows, row_h=0.178, size=8, num_cols=set(range(1, 9)), bold_rows=bolds, fill_rows=fills, hdr_size=8)
-for i in range(1, len(rows)):
-    for j in (2, 4, 6, 8):
-        c_ = t.table.cell(i, j).text_frame.paragraphs[0].runs[0]
-        c_.font.size = Pt(7)
-        c_.font.color.rgb = DGRAY
-unit(s, 7.6, 1.3, 1.8)
-footnote(s, '※65期の雑収入8,482千円・雑損5,192千円、66〜67期の支払手数料の内容は要確認。67期の雑収入には保険満期返戻金2,296千円を含む。', y=7.2)
-
-# 製造原価報告書
-s = D.new('製造原価報告書', FIN, '製造原価の主要項目は労務費・原材料（包装資材）・電力料（動力費）・減価償却費。')
-crws = M.wb['CR']
-rc = M.ref['CR']
-keys = []
-from data import CR as CRDEF
-for g, items in CRDEF:
-    keys.append(('g_' + g, g))
-    for it, _ in items:
-        if g == '製造経費' and all(v == 0 for v in dict(items)[it]):
-            continue
-        keys.append((g + '/' + it, '　' + it))
-keys.append(('製造原価', '当期製品製造原価'))
-rows = [['科目', *PS]]
-bolds, fills = [], {}
-for key, lab in keys:
-    rows.append([lab, *[fk(crws[f'{c}{rc[key]}'].value) for c in C4]])
-    if not lab.startswith('　'):
-        bolds.append(len(rows) - 1)
-fills[len(rows) - 1] = LBLUE
-half = 22
-table(s, X0, 1.5, [2.0, 0.85, 0.85, 0.85, 0.85], rows[:half], row_h=0.25, size=8.5, num_cols={1, 2, 3, 4}, bold_rows=[b for b in bolds if b < half], hdr_size=8.5)
-table(s, 5.85, 1.5, [2.0, 0.85, 0.85, 0.85, 0.85], [rows[0]] + rows[half:], row_h=0.25, size=8.5, num_cols={1, 2, 3, 4},
-      bold_rows=[b - half + 1 for b in bolds if b >= half], fill_rows={len(rows) - half: LBLUE}, hdr_size=8.5)
-unit(s, 9.5, 1.3, 1.8)
-footnote(s, ['※原材料は段ボール・ビニール袋等の包装資材。動力費は製氷・冷蔵設備の電力料。',
-             '※減価償却費は64期（23/3期）にほぼ計上なし。67期の退職給与6,178千円は臨時的な支出と推察（要確認）。'], y=6.95)
-
-# 販管費
-s = D.new('販売費及び一般管理費', FIN, '販管費の中心は配送運賃を含む輸送関係費と給与関係費。運賃は売上拡大に伴い増加傾向。')
-sws = M.wb['SGA']
-rs = M.ref['SGA']
-from data import SGA as SGADEF
-keys = []
-for g, items in SGADEF:
-    keys.append(('g_' + g, g))
-    for it, vals in items:
-        if all(v == 0 for v in vals):
-            continue
-        keys.append((g + '/' + it, '　' + it))
-keys.append(('合計', '販売費及び一般管理費 合計'))
-rows = [['科目', *PS]]
-bolds = []
-for key, lab in keys:
-    rows.append([lab, *[fk(sws[f'{c}{rs[key]}'].value) for c in C4]])
-    if not lab.startswith('　'):
-        bolds.append(len(rows) - 1)
-half = [i for i, r_ in enumerate(rows) if r_[0] == '輸送関係費'][0]
-table(s, X0, 1.5, [2.0, 0.85, 0.85, 0.85, 0.85], rows[:half], row_h=0.25, size=8.5, num_cols={1, 2, 3, 4}, bold_rows=[b for b in bolds if b < half], hdr_size=8.5)
-table(s, 5.85, 1.5, [2.0, 0.85, 0.85, 0.85, 0.85], [rows[0]] + rows[half:], row_h=0.25, size=8.5, num_cols={1, 2, 3, 4},
-      bold_rows=[b - half + 1 for b in bolds if b >= half], fill_rows={len(rows) - half: LBLUE}, hdr_size=8.5)
-unit(s, 9.5, 1.3, 1.8)
-footnote(s, ['※地代家賃は松戸営業所の店舗賃料1,200千円と代表者からの駐車場賃借545千円。支払手数料（一般業務費）は損益計算書に別掲。'], y=7.1)
-
-# ============================================================ Appendix
-D.use(59)
-s = D.new('沿革', APX, '1960年に越谷で創業。早くから純水設備を導入し、品質にこだわった純氷の製造を65年以上にわたり継続している。')
-hws = M.wb['沿革']
-rows = [['年月', '主な出来事']]
-r_ = 5
-while hws.cell(row=r_, column=2).value:
-    rows.append([hws.cell(row=r_, column=2).value, hws.cell(row=r_, column=3).value])
-    r_ += 1
-table(s, X0, 1.65, [2.6, 8.3], rows, row_h=0.42, size=10.5)
-footnote(s, '※1960〜1990年の記載は同社公式サイト等の公開情報、その他は登記・減価償却計算書による。代表者の経歴は要確認。', y=6.9)
-D.use(63)
-D.use(64)
-
-D.finalize(OUT)
-print('saved', OUT, len(D.order), 'slides')
+cp = prs.core_properties          # テンプレート作成者の個人名を残さない
+cp.author = '株式会社M&A承継機構'; cp.last_modified_by = ''; cp.title = ''
+prs.save(OUT)
+print('saved', OUT, len(prs.slides))

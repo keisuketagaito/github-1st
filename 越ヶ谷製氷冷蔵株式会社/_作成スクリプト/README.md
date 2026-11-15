@@ -1,39 +1,43 @@
-# 越ヶ谷製氷冷蔵 資料の再生成手順
+# 越ヶ谷製氷冷蔵 資料の再生成手順（261115版）
 
-数値の原本は `../越ヶ谷製氷冷蔵_案件マスター_261029.xlsx`。概要書・評価書・ノンネームシートはマスターの計算結果を読み込んで生成する（パワポへの手入力はしない）。
+ma-deal-docs スキルの標準フロー（鶴岡中央青果261027で確立）に沿って作り直した。
+
+1. **公式マスター（M&A承継機構 案件マスター 0925版）を埋める**：`assets/master_template.xlsx` を起点に、財務入力→・VR→・IM→の全シートへ転記
+2. **LibreOfficeで再計算して値を書き戻す**：書式（游ゴシック）は元ファイルのまま、値だけ `inject_cache.py` で注入
+3. **概要書・評価書・ノンネームは当社テンプレートを複製**し、表はマスターの貼付範囲を `paste_range` で貼る（パワポに数字を打たない）
 
 | ファイル | 役割 |
 |---|---|
-| `data.py` | 決算書から転記した原データ（円単位）。64〜66期＝他社作成の概要書、67期＝第67期決算書・内訳書 |
-| `build_master.py` | 案件マスター（財務入力→／VR→／IM→）を数式付きで生成 |
-| `build_im.py` / `build_vr.py` / `build_nn.py` | 企業概要書／株式価値評価書／ノンネームシートを生成 |
-| `deck.py` | 表・グラフ・コメント枠などの描画部品（M&A承継機構テンプレート準拠） |
-| `master_ref.json` | マスターの行番号マップ（build_master.py が出力） |
-
-テンプレートは鳥塚案件の企業概要書（261014版、64頁）を使う。
+| `data.py` | 決算書から転記した原データ（円単位）。第64〜66期＝対象会社提供の既存会社説明資料（財務表）、第67期＝第67期決算報告書・勘定科目内訳書・減価償却計算書 |
+| `build_master.py` | 公式マスターへの転記・貼付範囲の組成・テンプレート不具合の修正 |
+| `make_master.sh` | `build_master.py` → LibreOffice再計算 → `inject_cache.py` を一括実行 |
+| `build_im.py` | 企業概要書（`assets/im_template.pptx` を複製、34頁） |
+| `build_vr.py` | 株式価値評価書（`assets/vr_template.pptx` を複製、26頁） |
+| `build_nn.py` | ノンネームシート（`assets/nonname_template.pptx`、A4縦1枚。社名が割れる語の検査付き） |
+| `master_index.json` | マスターの行番号・貼付範囲（`make_master.sh` が出力） |
 
 ```bash
-python3 build_master.py ../越ヶ谷製氷冷蔵_案件マスター_261029.xlsx master_ref.json
-python3 /mnt/skills/public/xlsx/scripts/recalc.py ../越ヶ谷製氷冷蔵_案件マスター_261029.xlsx 300
+bash make_master.sh <作業フォルダ> ../越ヶ谷製氷冷蔵_案件マスター_261115.xlsx
 ```
 
 ```bash
-MASTER_REF=master_ref.json python3 build_im.py <テンプレート.pptx> ../越ヶ谷製氷冷蔵_案件マスター_261029.xlsx ../越ヶ谷製氷冷蔵_企業概要書_261029.pptx ../画像
+python3 build_im.py ../越ヶ谷製氷冷蔵_案件マスター_261115.xlsx ../企業概要書_越ヶ谷製氷冷蔵_261115.pptx ../写真
 ```
 
-評価書・ノンネームシートも同じ引数（画像フォルダは不要）で `build_vr.py` / `build_nn.py` を実行する。
+```bash
+python3 build_vr.py ../越ヶ谷製氷冷蔵_案件マスター_261115.xlsx ../株式価値評価書_越ヶ谷製氷冷蔵_261115.pptx 2026年11月15日
+```
 
-> マスターを Excel で手修正した場合は、`build_master.py` を再実行せず（上書きされるため）、`recalc.py` で再計算してから各資料のスクリプトだけを実行する。
+```bash
+python3 build_nn.py ../越ヶ谷製氷冷蔵_案件マスター_261115.xlsx ../ノンネームシート_製氷業_関東_261115.pptx
+```
 
-## 写真の差し込み
+> マスターをExcelで手修正した場合は `make_master.sh` を再実行しない（上書きされる）。再計算だけ行ってから各資料のスクリプトを実行する。
+> スキルの配置先が異なる環境では、環境変数 `MA_SKILL` に ma-deal-docs のフォルダを指定する。
 
-概要書の写真枠は、`../画像/` に下表のファイル名で画像を置いて `build_im.py` を再実行すると自動で貼り付く（縦横比を保って中央トリミング）。
+## 公式テンプレートで直した不具合（マスター）
 
-| ファイル名 | 貼付先 | 取得元（同社公式サイト） |
-|---|---|---|
-| `product_ice.jpg` | 基本情報（角氷・純氷） | https://www.king-ice.com/product.html |
-| `product_bag.jpg` | 基本情報（袋氷キングアイス） | https://www.king-ice.com/product_04.html |
-| `product_dia.jpg` | 基本情報（ダイヤアイス） | https://www.king-ice.com/product_09.html |
-| `factory.jpg` | 基本情報・拠点概要（工場外観） | https://www.king-ice.com/corporate.html |
-| `map.jpg` | 拠点概要（所在地地図） | Googleマップ等のスクリーンショット |
-| `proc_1.jpg` 〜 `proc_6.jpg` | 純氷の製造工程（①純水製造〜⑥保管・出荷） | https://www.king-ice.com/junhyo.html |
+- `修正SGA` の35〜38行が `SGA` に連動しておらず、科目数が多いと販管費の帳簿価額が過少になる → 連動させ、合計一致のチェック行を追加
+- `CR` の期首・期末仕掛品棚卸高が `SUM()` の数式になっていた → 値に置換（決算書の当期製造原価と一致をチェック）
+- `修正PL` の製造原価の修正額が `修正CR` に連動していない → `=修正CR!M41` 等で連動
+- 進行期（試算表未受領）・1期目の空列は「IMに貼るときは非表示」の運用に合わせて非表示。進行期の売上高比の `#DIV/0!` を除去
