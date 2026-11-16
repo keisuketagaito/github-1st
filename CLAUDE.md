@@ -23,7 +23,7 @@ Valuation Report／ノンネームシート／会社分割スキーム資料／�
    | 成果物 | テンプレート | 部品 | 着手前に読む |
    |---|---|---|---|
    | 企業概要書（IM） | `assets/im_template.pptx` | `scripts/im_builder.py` | `references/im-structure.md` |
-   | 株式価値評価書（VR） | `assets/vr_template.pptx` | `scripts/vr_builder.py` | `references/valuation.md` |
+   | 株式価値評価書（VR） | `assets/vr_template.pptx` | `scripts/vr_builder.py`・`scripts/vr_prep.py` | `references/valuation.md`「評価書の作り方」 |
    | ノンネームシート | `assets/nonname_template.pptx` | `scripts/nn_builder.py` | `references/nonname.md` |
 
    いずれも `.claude/skills/ma-deal-docs/` 配下。python-pptx で白紙から組み立てることは禁止。
@@ -69,7 +69,7 @@ Valuation Report／ノンネームシート／会社分割スキーム資料／�
 |---|---|
 | 案件マスター | 鶴岡中央青果案件（公式フォーマット 261027。`assets/master_template.xlsx`） |
 | 企業概要書（IM） | 鳥塚案件（水産養殖業／関西・64頁）、鶴岡中央青果案件（261027・36頁。作り方は `examples/tsuruoka_261027/`） |
-| 株式価値評価書（VR） | カナリア案件（Valuation Report 260729・22頁） |
+| 株式価値評価書（VR） | 鳥塚案件（Valuation Report 260708・23頁）、鶴岡中央青果案件（261116・24頁。作り方は `examples/tsuruoka_261116_vr/`）。表はマスターのシートを丸ごと貼る |
 | ノンネームシート | 鶴岡中央青果案件（261015・A4縦1枚） |
 
 テンプレートの穴を埋めるのではなく、**その案件で何が論点になるか・何が相手の関心事かを
