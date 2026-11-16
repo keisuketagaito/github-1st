@@ -275,6 +275,9 @@ def paste_range(slide, wb, ref, x, y, w=None, hscale=1.0, fscale=1.0, margin=0.0
             vc = [c for c in range(mr.min_col, mr.max_col + 1) if c in ci]
             if vr and vc and (len(vr) > 1 or len(vc) > 1):
                 tbl.cell(ri[vr[0]], ci[vc[0]]).merge(tbl.cell(ri[vr[-1]], ci[vc[-1]]))
+    _levels = {c: {int(ws.cell(r, c).alignment.indent or 0) for r in rows_
+                   if isinstance(ws.cell(r, c).value, str) and ws.cell(r, c).value.strip()
+                   and (ws.cell(r, c).alignment.horizontal or 'left') == 'left'} for c in cols}
     for i, r in enumerate(rows_):
         for j, c in enumerate(cols):
             xc = ws.cell(r, c)
@@ -284,9 +287,11 @@ def paste_range(slide, wb, ref, x, y, w=None, hscale=1.0, fscale=1.0, margin=0.0
             size = (fnt.sz or 10.5) * fscale
             txt_ = fmt_value(xc.value, xc.number_format)
             ind = int(xc.alignment.indent or 0)
-            if txt_ and ind:
-                txt_ = '　' * ind + txt_
             hal = xc.alignment.horizontal or ('right' if isinstance(xc.value, (int, float)) and not isinstance(xc.value, bool) else 'left')
+            # 字下げ（全角スペース）は科目列だけ：先頭列か、字下げが2段以上ある列（B/Sの負債側など階層のある列）。
+            # 所在地・業種・備考などの文字列の列に字下げを持ち込まない（依頼者修正 261116）
+            if txt_ and ind and hal == 'left' and (j == 0 or len(_levels[c]) > 1):
+                txt_ = '　' * ind + txt_
             algn = {'left': 'l', 'center': 'ctr', 'right': 'r', 'centerContinuous': 'ctr'}.get(hal, 'l')
             txBody = tc.find(qn('a:txBody'))
             for p in txBody.findall(qn('a:p')):
@@ -340,13 +345,36 @@ def _run(p, t, size, bold, color_sys=True, name=JP):
     return r
 
 
-def fill_comment(sh, lines, body=9, head=10, after=3):
-    """テンプレートのComment本文ボックスに書く。≪…≫・【…】・✓ で始まる行は見出し（10pt太字）、
-    それ以外は本文（9pt）、空文字は空行。bodyPr（余白・自動調整）はテンプレートのまま。"""
+def fill_comment(sh, lines, body=10.5, head=11, after=3, gap=True, split=True):
+    """テンプレートのComment本文ボックスに書く。≪…≫・【…】・✓ で始まる行は見出し（11pt太字）、
+    それ以外は本文（10.5pt）、空文字は空行。bodyPr（余白・自動調整）はテンプレートのまま。
+
+    依頼者修正（越ヶ谷製氷冷蔵 261116）に合わせた既定：
+    - 文字は本文10.5pt・見出し11pt（9pt/10ptでは小さすぎて読まれない。下限は本文10pt）
+    - gap=True：2つ目以降の ≪見出し≫ の前に空行を1行入れる（ブロックの切れ目を見せる）
+    - split=True：「≪土地≫・本文…」のように見出しと本文が同じ行にあれば2行に分ける
+    【調整項目】【時価修正】の枠でも同じ既定を使う（詰めて小さくしない。入らなければ文章を削る）。
+    """
     txBody = sh.text_frame._txBody
     for p in txBody.findall(qn('a:p')):
         txBody.remove(p)
+    flat = []
     for ln in lines:
+        if split and ln[:1] in '≪【':
+            close = '≫' if ln[0] == '≪' else '】'
+            j = ln.find(close)
+            if 0 < j < len(ln) - 1:
+                flat += [ln[:j + 1], ln[j + 1:].lstrip()]
+                continue
+        flat.append(ln)
+    if gap:
+        spaced = []
+        for ln in flat:
+            if ln[:1] == '≪' and spaced and spaced[-1] != '' and spaced[-1][:1] != '【':
+                spaced.append('')
+            spaced.append(ln)
+        flat = spaced
+    for ln in flat:
         p = etree.SubElement(txBody, qn('a:p'))
         pPr = etree.SubElement(p, qn('a:pPr'))
         sa = etree.SubElement(etree.SubElement(pPr, qn('a:spcAft')), qn('a:spcPts')); sa.set('val', str(after * 100))
@@ -374,9 +402,11 @@ def set_lead(slide, text_):
             return sh
 
 
-def note(slide, x, y, w, lines, size=8):
-    """表の下の注記（※…）。黒・游ゴシック、余白0のテキストボックス。"""
-    tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(0.18 * len(lines)))
+def note(slide, x, y, w, lines, size=10):
+    """表の下の注記（※…）。黒・游ゴシック10pt、余白0のテキストボックス。
+    8pt以下は依頼者修正で全て10〜10.5ptに上げられた（越ヶ谷製氷冷蔵 261116）。下限10pt。
+    注記は「表を読むのに必要な前提」だけを書く。データルーム・評価書・受領後の予定には触れない。"""
+    tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(0.22 * len(lines)))
     tf = tb.text_frame
     tf.word_wrap = True
     for a in ('margin_left', 'margin_right', 'margin_top', 'margin_bottom'):

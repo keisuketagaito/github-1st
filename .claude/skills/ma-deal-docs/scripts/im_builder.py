@@ -94,6 +94,20 @@ def delete_slide(prs, index: int) -> None:
     lst.remove(ids[index])
 
 
+def park_internal_slide(prs, index: int) -> None:
+    """0始まりのindexのスライドを末尾（裏表紙の後ろ）へ移し、非表示にする。
+
+    「要確認事項・ネクストステップ」のような社内用の頁に使う（依頼者修正 261116）。
+    非表示スライドはPowerPoint・LibreOfficeのPDF出力に含まれないが、pptxを開けば見える。
+    **買手へはPDFで渡す。pptxで渡すときはこの頁を削除してから渡す。**
+    """
+    lst = _sldIdLst(prs)
+    el = list(lst)[index]
+    lst.remove(el)
+    lst.append(el)
+    prs.slides[len(prs.slides) - 1]._element.set('show', '0')
+
+
 def keep_slides(prs, keep_1based: list[int]) -> None:
     """指定した頁番号（1始まり）だけ残して他を削除する。"""
     keep = {i - 1 for i in keep_1based}
@@ -390,8 +404,8 @@ def rich(slide, x, y, w, h, parts, anchor=MSO_ANCHOR.TOP):
     return box
 
 
-def note(slide, text, y=None, size=7.5):
-    """最下部の注記（※で始まる出所・補足・要確認事項）。"""
+def note(slide, text, y=None, size=10):
+    """最下部の注記（※で始まる出所・補足）。下限10pt（依頼者修正 261116：7.5〜8ptは全て上げられた）。"""
     x, y0, w, h = NOTE_POS
     return textbox(slide, x, y if y is not None else y0, w, h, text,
                    size=size, color=NOTE, font=JP, line_sp=1.12, space=1)
@@ -551,7 +565,7 @@ def is_number(s) -> bool:
 
 
 def house_table(slide, x, y, w, col_w, rows, row_h=0.23, head_h=0.23,
-                size=8.5, head_rows=1, bold_rows=(), aligns=None,
+                size=10, head_rows=1, bold_rows=(), aligns=None,
                 head_fill=NAVY, fills=None, red_minus=True):
     """当社標準の表。
 
@@ -650,7 +664,7 @@ def flow_block(slide, x, y, w, h, title, lines, color=BLUE,
     textbox(slide, x + 0.16, y + 0.10, w - 0.30, 0.24, title,
             size=9.5, bold=True, color=NAVY, font=JP)
     textbox(slide, x + 0.16, y + 0.40, w - 0.30, h - 0.50, lines,
-            size=8.3, color=NOTE, font=JP, line_sp=1.18, space=1)
+            size=10, color=NOTE, font=JP, line_sp=1.18, space=1)
 
 
 def photo_tile(slide, path, x, y, w, h, caption=None, cap_size=8,
