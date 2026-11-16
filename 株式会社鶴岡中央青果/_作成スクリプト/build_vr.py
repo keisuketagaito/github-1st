@@ -15,11 +15,9 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '../../.claude/skills/ma-deal-docs/scripts'))
 from openpyxl import load_workbook  # noqa: E402
-from pptx.dml.color import RGBColor  # noqa: E402
-from pptx.oxml.ns import qn  # noqa: E402
 import im_paste as ip  # noqa: E402
-from im_builder import duplicate_slide, strip_red_banners, fix_broken_pictures  # noqa: E402
-from vr_builder import open_vr_template, vr_bar  # noqa: E402
+from vr_builder import (open_vr_template, strip_red_banners, fix_broken_pictures, vr_bar,  # noqa: E402
+                        vr_paste, highlight_rows, vr_text, set_range_chart, insert_detail_pages, drop_tables)
 
 MASTER, OUT = sys.argv[1], sys.argv[2]
 DATE = '2026年11月16日'
@@ -28,50 +26,18 @@ v = lambda sh, a: wb[sh][a].value
 m = lambda x: f'{x / 1e6:,.1f}'                                   # 円→百万円
 K = lambda x: f'{x / 1000:,.0f}' if x >= 0 else f'△{-x / 1000:,.0f}'   # 円→千円
 Y, EV, NC = '年買法', 'EV EBITDAマルチプル', 'ネットキャッシュ'
-YELLOW = RGBColor(0xFF, 0xFF, 0x00)
 
 prs = open_vr_template()
 strip_red_banners(prs)
 fix_broken_pictures(prs)
-
-# 修正内容詳細①②をBS補足［資産］（10頁目）の後に挿入（ネットキャッシュ頁＝14頁目の枠を流用）
-duplicate_slide(prs, 13, after=9)
-duplicate_slide(prs, 14, after=10)
+# 修正内容詳細①②をBS補足［資産］の後に挿入（ネットキャッシュ頁の枠を流用）
+insert_detail_pages(prs, ['修正内容詳細①［土地］', '修正内容詳細②［投資有価証券・税効果］'])
 SL = list(prs.slides)
 P = lambda n: SL[n - 1]
-
-
-def sid(s, i):
-    return ip.shape_by_id(s, i)
-
-
-def drop_tables(s):
-    for sh in list(s.shapes):
-        if sh.has_table:
-            sh._element.getparent().remove(sh._element)
-
-
-def paste(s, ref, x, y, w, target, fs=None, hmax=1.0):
-    """target（インチ）に収まるよう行高を縮め、文字も同じ比率で縮めて貼る。戻り値は表の下端。"""
-    hs = min(hmax, target / ip.range_height(wb, ref))
-    t = ip.paste_range(s, wb, ref, x, y, w, hscale=hs, fscale=fs or min(0.9, hs * 1.08))
-    return t, y + ip.range_height(wb, ref, hscale=hs)
-
-
-def highlight(tbl, labels):
-    """BS補足頁：Commentで触れた科目の行を黄色にする（鳥塚形式）。"""
-    for r in range(len(tbl.rows)):
-        if tbl.cell(r, 0).text.strip() in labels:
-            for c in range(len(tbl.columns)):
-                cell = tbl.cell(r, c)
-                cell.fill.solid()
-                cell.fill.fore_color.rgb = YELLOW
-
-
-def bullets(sh, lines, size=9):
-    ip.set_text(sh, lines, size=size)
-    for hl in sh._element.iter(qn('a:highlight')):     # テンプレートの見本文に付いた黄色マーカーを外す
-        hl.getparent().remove(hl)
+sid = ip.shape_by_id
+paste = lambda s, ref, x, y, w, target, fs=None, hmax=1.0: vr_paste(s, wb, ref, x, y, w, target, fs, hmax)
+highlight = highlight_rows
+bullets = lambda sh, lines, size=9: vr_text(sh, lines, size)
 
 
 # ------------------------------------------------------------------ 表紙・問い合わせ先
@@ -96,13 +62,7 @@ for r, txt in enumerate(['株式会社鶴岡中央青果　普通株式4,000株�
     ip.set_text(t.cell(r, 1), txt)
 ip.set_text(sid(s, 30), f'{K(v(Y, "K6"))}　～　{K(v(Y, "M6"))}（千円）')
 ip.set_text(sid(s, 4), f'{K(v(EV, "K7"))}　～　{K(v(EV, "M7"))}（千円）')
-ch = next(sh for sh in s.shapes if sh.has_chart).chart        # 積上げ横棒：系列1＝下限（透明）、系列2＝幅
-from pptx.chart.data import CategoryChartData  # noqa: E402
-cd = CategoryChartData()
-cd.categories = ['インカム', 'マーケット', 'コスト']
-cd.add_series('min', [0, v('株式価値 ', 'C5'), v('株式価値 ', 'C6')])      # 円（軸の表示形式 #,##0, で千円表示）
-cd.add_series('差', [0, v('株式価値 ', 'D5'), v('株式価値 ', 'D6')])
-ch.replace_data(cd)
+set_range_chart(s, wb)
 gf = next(sh for sh in s.shapes if sh.has_chart)
 ip.place(gf, 6.9, 3.95, 4.4, 2.45)
 ip.place(sid(s, 34), 10.32, 3.78)
@@ -137,8 +97,6 @@ bullets(sid(s, 9), [
 
 # ------------------------------------------------------------------ P11 修正内容詳細①［土地］
 s = P(11)
-ip.set_text(sid(s, 9), '修正内容詳細①［土地］')
-drop_tables(s)
 vr_bar(s, 0.49, 0.94, 10.71, '土地')
 _, yb = paste(s, '土地!B3:G8', 0.49, 1.35, 10.71, 1.9, fs=0.8)
 ip.place(sid(s, 19), 0.49, yb + 0.35, 10.71, 2.1)
@@ -151,8 +109,6 @@ bullets(sid(s, 8), [
 
 # ------------------------------------------------------------------ P12 修正内容詳細②［投資有価証券・税効果］
 s = P(12)
-ip.set_text(sid(s, 9), '修正内容詳細②［投資有価証券・税効果］')
-drop_tables(s)
 vr_bar(s, 0.49, 0.94, 10.71, '投資有価証券')
 _, yb = paste(s, '有価証券!B3:G9', 0.49, 1.35, 10.71, 1.2, fs=0.8)
 vr_bar(s, 0.49, yb + 0.25, 10.71, '税効果')
