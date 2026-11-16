@@ -245,6 +245,9 @@ sec['B4'] = '株式）フィデアホールディングス'; sec['C4'] = 3000; s
 sec['E4'] = '=F4-D4'; sec['G4'] = '2026年9月18日終値（2,814円）を元に時価を算出（算定日終値で要更新）'
 sec['B5'] = '株式）(株)庄果・出資金）鶴岡信用金庫ほか'; sec['C5'] = '-'; sec['D5'] = 1400000; sec['F5'] = '=D5'
 sec['E5'] = '=F5-D5'; sec['G5'] = '取引関係上の保有。市場価格なし（簿価評価）'
+land.row_dimensions[7].hidden = True
+for r in (6, 7, 8):
+    sec.row_dimensions[r].hidden = True
 ins = wb['保険']
 clear(ins, 4, 7, 2, 6)
 ins['B4'] = '事業保険積立金'; ins['C4'] = 0; ins['E4'] = 0; ins['D4'] = '=E4-C4'
@@ -288,12 +291,25 @@ for i, (nm, ok, ref, memo) in enumerate([
     tax[f'F{r}'] = memo
 tax['D18'] = '=SUM(D4:D17)'; tax['E18'] = '=SUM(E4:E17)'
 tax['F18'] = '繰延税金負債（評価益×実効税率34%）'
+for r in range(8, 18):
+    tax.row_dimensions[r].hidden = True
 nc = wb['ネットキャッシュ']
 for r in range(4, 13):
     nc[f'C{r}'] = None; nc[f'F{r}'] = None
-nc['C4'] = "='修正BS(借方)'!E6"; nc['C9'] = '=有価証券!F4'
-nc['B9'] = '投資有価証券（上場株式・時価）'
-nc['F5'] = "='修正BS(貸方) '!E19"; nc['F8'] = "='修正BS(貸方) '!E10"
+# 評価書に貼るため、使う科目を上に詰める（鳥塚形式）。使わない科目は下に残して非表示
+LEFT = [('現金及び預金', "='修正BS(借方)'!E6"), ('投資有価証券（上場株式・時価）', '=有価証券!F4'),
+        ('保険積立金', 0), ('役員貸付金', 0), ('従業員貸付金', None), ('立替金', None),
+        ('売却予定不動産', None), ('売却予定車両', None), (None, None)]
+RIGHT = [('長期借入金', "='修正BS(貸方) '!E19"), ('未払法人税等', "='修正BS(貸方) '!E10"),
+         ('役員借入金', 0), ('役員退職慰労金', 0), ('短期借入金', None), ('社債', None),
+         ('資産除去債務', None), ('営業循環外前受金', None), ('ファイナンスリース債務', None)]
+for i, ((lb, lv), (rb, rv)) in enumerate(zip(LEFT, RIGHT)):
+    r = 4 + i
+    nc[f'B{r}'] = lb; nc[f'C{r}'] = lv; nc[f'E{r}'] = rb; nc[f'F{r}'] = rv
+    if r >= 8:
+        nc.row_dimensions[r].hidden = True
+for r in (16, 17, 18):
+    nc.row_dimensions[r].hidden = True
 nc['C15'] = '=C13-F13'
 nc['F15'] = '=F13-C13'      # テンプレートの不具合修正（I13を参照していた）
 nc['C17'] = None; nc['F17'] = None
