@@ -233,6 +233,7 @@ print('変更スライド:', [i+1 for i, (x, y) in enumerate(zip(a.slides, b.sli
 | `pptx_table.py` | 既存の表を壊さずに編集（セル差し替え・列／行の追加・表の複製）と構造チェック `check_tables` |
 | `registry_parse.py` | 登記簿謄本PDFを一括解析（所有者・取得原因・地積・担保・共同担保目録） |
 | `render_check.py` | 全頁を描画して一覧画像を作る（目視チェック用） |
+| `vr_prep.py` | 再計算後のマスターのVR→シート（修正BS・修正PL・修正SGA）の空行・未使用列を非表示にし、評価書に丸ごと貼れる形にする（`references/valuation.md`「評価書の作り方」） |
 | `check_confidential.py` | 買手向け資料への社内限情報の混入チェック |
 
 ## バックアップと他のチャットでの利用
