@@ -25,7 +25,7 @@ description: >
 |---|---|---|---|---|
 | 案件マスター | `master_template.xlsx`（公式0925版・既知の不具合修正済み） | `master_im_style.py` `inject_cache.py` `xlsx_xml.py` | `master-sheets.md` `im-design.md` §7 | 鶴岡中央青果 261027 |
 | 企業概要書（IM） | `im_template.pptx` | `im_builder.py`（頁枠・部品）＋`im_paste.py`（表の貼付） | `im-design.md` `im-structure.md` `quality-checklist.md` | 鳥塚（水産養殖業／関西）・鶴岡中央青果 261027 |
-| 株式価値評価書（VR） | `vr_template.pptx` | `vr_builder.py` | **`ma-valuation` スキル**（正本）＋`valuation.md` | カナリア（260729） |
+| 株式価値評価書（VR） | `vr_template.pptx` | `vr_prep.py`（マスター整理）＋`vr_builder.py`（`vr_paste` ほか） | **`ma-valuation` スキル**（正本）＋`valuation.md`「評価書の作り方」 | 鳥塚（260708）・鶴岡中央青果（261116） |
 | ノンネームシート | `nonname_template.pptx`（A4縦1枚） | `nn_builder.py` | `nonname.md` | 鶴岡中央青果（261015） |
 
 完成形の実例と作り方：`examples/tsuruoka_261027/README.md`（依頼者が「めちゃ良い感じ」と評価した概要書の作成手順と、

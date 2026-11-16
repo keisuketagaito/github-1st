@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 """株式価値評価書（Valuation Report）ハウスフォーマットの部品ライブラリ。
 
+【最重要】表はマスターのシートを丸ごと貼る（鳥塚260708・鶴岡中央青果261116の作り方）。
+  1) マスター再計算後に vr_prep.py で空行・未使用列を非表示
+  2) open_vr_template() → strip_red_banners / fix_broken_pictures → insert_detail_pages（土地等）
+  3) 各頁 drop_tables → vr_paste(PASTE_MAP の範囲) → vr_text で Comment、highlight_rows で黄色、set_range_chart
+  実例：examples/tsuruoka_261116_vr/build_vr.py。下の value_range / range_chart / house_table で
+  表やレンジを手で組む作り方は旧方式（依頼者に差し戻された）。
+
 当社テンプレート `assets/vr_template.pptx` を複製したうえで、
 本モジュールと `im_builder` の部品だけでページを組み立てる。
 座標・色・フォントはカナリア案件（Valuation Report 260729）から採取した実測値。
@@ -221,4 +228,94 @@ def ev_multiple_value(base_ebitda, net_cash, multiples=(3, 4, 5),
         ev = base_ebitda * m
         dc = -ev * discount
         out[m] = (ev, dc, ev + dc + net_cash)
+    return out
+
+
+# ================================================================= マスター貼付型の作り方（鳥塚・鶴岡中央青果261116）
+# 評価書の表は「案件マスターのVR→シートを丸ごと貼る」。要約表を手で組まない・旧版の数字を差し替えない。
+# 手順と頁ごとの範囲は references/valuation.md「評価書の作り方」、実例は examples/tsuruoka_261116_vr/。
+import im_paste as _ip  # noqa: E402
+from pptx.oxml.ns import qn as _qn  # noqa: E402
+
+# テンプレート頁（1始まり・詳細頁挿入前）→ 貼る範囲（公式マスター。vr_prep.py で非表示整理済みが前提）
+PASTE_MAP = {
+    9:  ["'BS(借方)'!B3:G61", "'BS (貸方)'!B3:G25", "'BS (貸方)'!B34:G51"],   # 過去BSの推移
+    10: ["'BS(借方)'!B3:G61"],                                                # BS補足［資産］＋黄色
+    11: ["'修正BS(借方)'!B3:E61"],                                            # 修正BS［資産］
+    12: ["'BS (貸方)'!B3:G25", "'BS (貸方)'!B34:G51"],                        # BS補足［負債・純資産］＋黄色
+    13: ["'修正BS(貸方) '!B3:E53"],                                           # 修正BS［負債・純資産］
+    14: ['ネットキャッシュ!B3:F15'],                                            # ネットキャッシュの算定
+    16: ['PL!B2:L56'],                                                        # 過去PLの推移
+    17: ['修正SGA!B3:N39'],                                                   # 販管費の修正
+    18: ['修正PL!B3:N56'],                                                    # 修正PLの算定
+    20: ['年買法!B3:C7', '年買法!E3:H10', '年買法!J3:M6'],                    # 年買法
+    21: ["'EV EBITDAマルチプル'!B3:C6", "'EV EBITDAマルチプル'!E3:H10", "'EV EBITDAマルチプル'!J3:M7"],
+}
+DETAIL_RANGES = {'土地': '土地!B3:G8', '有価証券': '有価証券!B3:G9', '税効果': '税効果!B3:F18',
+                 '売掛・棚卸': '売掛・棚卸!A3:F8', '減価償却': '減価償却!B3:F8', '保険': '保険!B3:F8'}
+YELLOW = RGBColor(0xFF, 0xFF, 0x00)
+
+
+def drop_tables(slide):
+    """テンプレートの見本の表を消す（貼り替える前に必ず）。"""
+    for sh in list(slide.shapes):
+        if sh.has_table:
+            sh._element.getparent().remove(sh._element)
+
+
+def vr_paste(slide, wb, ref, x, y, w, target, fs=None, hmax=1.0):
+    """マスター範囲を貼る。表の高さが target（インチ）に収まるよう行高を縮め、文字も同じ比率で縮める
+    （公式マスターは12pt基準。fs を明示しなければ min(0.9, 行高倍率×1.08)）。戻り値は (表, 下端y)。"""
+    hs = min(hmax, target / _ip.range_height(wb, ref))
+    t = _ip.paste_range(slide, wb, ref, x, y, w, hscale=hs, fscale=fs or min(0.9, hs * 1.08))
+    return t, y + _ip.range_height(wb, ref, hscale=hs)
+
+
+def highlight_rows(table, labels, rgb=YELLOW):
+    """BS補足頁：Commentで触れた科目の行を黄色にする（鳥塚形式）。table は graphicFrame.table。"""
+    for r in range(len(table.rows)):
+        if table.cell(r, 0).text.strip() in labels:
+            for c in range(len(table.columns)):
+                table.cell(r, c).fill.solid()
+                table.cell(r, c).fill.fore_color.rgb = rgb
+
+
+def vr_text(shape, lines, size=None):
+    """テンプレートの文字枠（Comment本文・注記）を差し替える。書式は保ち、見本文の黄色マーカーは外す。"""
+    _ip.set_text(shape, lines, size=size)
+    for hl in list(shape._element.iter(_qn('a:highlight'))):
+        hl.getparent().remove(hl)
+
+
+def set_range_chart(slide, wb, sheet='株式価値 '):
+    """P7のレンジ図（積上げ横棒：系列1＝下限・透明、系列2＝幅）をマスター『株式価値』から更新する。
+    値は円のまま渡す（軸の表示形式 #,##0, で千円表示。千円に割ると二重に縮む）。"""
+    from pptx.chart.data import CategoryChartData
+    ch = next(sh for sh in slide.shapes if sh.has_chart).chart
+    v = lambda a: wb[sheet][a].value or 0
+    cd = CategoryChartData()
+    cd.categories = ['インカム', 'マーケット', 'コスト']
+    cd.add_series('min', [v('C4'), v('C5'), v('C6')])
+    cd.add_series('差', [v('D4'), v('D5'), v('D6')])
+    ch.replace_data(cd)
+    return ch
+
+
+def _title_shape(slide):
+    return next(sh for sh in slide.shapes if sh.has_text_frame and sh.name.startswith('タイトル')
+                and sh.top < Inches(0.25))
+
+
+def insert_detail_pages(prs, titles, after_title='BS補足［資産］', src_title='ネットキャッシュの算定'):
+    """『修正内容詳細①［土地］』等をBS補足［資産］の後に挿入する（ネットキャッシュ頁の枠を複製し表を消す）。
+    戻り値は挿入した頁のリスト。各頁に vr_bar と vr_paste で詳細表を置き、Comment枠は place で動かす。"""
+    def idx(t):
+        return next(i for i, s in enumerate(prs.slides) if any(
+            sh.has_text_frame and sh.text_frame.text.strip() == t for sh in s.shapes))
+    out = []
+    for k, t in enumerate(titles):
+        new = duplicate_slide(prs, idx(src_title), after=idx(after_title) + k)
+        drop_tables(new)
+        _ip.set_text(_title_shape(new), t)
+        out.append(new)
     return out
