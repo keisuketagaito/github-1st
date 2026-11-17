@@ -1064,6 +1064,109 @@ move_after('許認可', '設備')
 move_after('沿革', '許認可')
 move_after('その他補足', '沿革')
 
+# ======================================================================== 買手向け評価（2026/11 依頼者指示）
+# 売手向け（3月末基準・保守的）とは別に、買手候補先へ「希望譲渡価格が割安であること」を示すための試算。
+# 前提はすべて検証可能なものに限り、評価書に明記する：①基準日を進行期末（2026/9末試算表、上期の法人税等は見込計上）
+# ②土地は事業用として簿価評価（固評÷0.7の推計は参考表示）③正常収益力は直近12か月（LTM）④営業権2〜4年
+# ⑤EV/EBITDA 4〜6倍・非流動性ディスカウントなし。調整後EBITDAは概要書と同じ値を使う（2026/3期・進行期）。
+yb_ = wb['年買法']
+by = wb.create_sheet('買手評価')
+by.sheet_view.showGridLines = False
+for col, w in zip('ABCDEFGHIJKLMN', [2, 30, 16, 3, 26, 15, 17, 15, 19, 3, 22, 14, 14, 14]):
+    by.column_dimensions[col].width = w
+ST = {'h': yb_['E3'], 'l': yb_['E4'], 'n': yb_['F4'], 'bl': yb_['E6'], 'bn': yb_['F6'],
+      'hl': yb_['E8'], 'hn': yb_['F8'], 'tl': yb_['J6'], 'tn': yb_['K6']}
+def put(a, val, st):
+    by[a] = val; cs(by, ST[st], by[a])
+by['A1'] = '■ 貼付範囲 B3:C11（時価純資産）／E3:I13（正常収益力）／K3:N6（年買法）／K9:N13（マルチプル）／B16:F21（ネットキャッシュ）／B24:C32（希望譲渡価格との比較）／B35:C38（ネットキャッシュ要約） → 買手向け評価書'
+by['A1'].font = Font(name=JP, size=9, color='C00000')
+# --- 時価純資産（2026/9末）
+put('B3', '2026年9月末（試算表）', 'h'); put('C3', '金額', 'h')
+rows = [('簿価純資産額', "='BS (貸方)'!G50", 'l', 'n'),
+        ('土地（事業用・簿価評価）', 0, 'l', 'n'),
+        ('投資有価証券（上場株式の時価評価）', '=有価証券!E4', 'l', 'n'),
+        ('貸倒引当金（戻入）', "=-'BS(借方)'!G15", 'l', 'n'),
+        ('電話加入権（ゼロ評価）', "=-'BS(借方)'!G36", 'l', 'n'),
+        ('上期の法人税等（見込計上）', '=-ROUND(PLハイライト!G12*0.34,-3)', 'l', 'n'),
+        ('評価差額に係る税効果', '=-ROUND((C6+C7)*0.34,0)', 'l', 'n'),
+        ('時価純資産', '=SUM(C4:C10)', 'hl', 'hn')]
+for i, (lab, f, sl, sn) in enumerate(rows):
+    put(f'B{4 + i}', lab, sl); put(f'C{4 + i}', f, sn)
+# --- 正常収益力（LTM）
+for c, t in zip('EFGHI', ['（千円）', '2026年3月期', '2025年4〜9月\n（前年同期・推計）', '2026年4〜9月\n（試算表）', 'LTM\n（2025/10〜2026/9）']):
+    put(f'{c}3', t, 'h'); by[f'{c}3'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+by.row_dimensions[3].height = 36
+by_pl = [('営業利益（帳簿）', 'PLハイライト!F8', 'PLハイライト!G38', 'PLハイライト!G8'),
+      ('修正額（概要書の調整項目）', 'PLハイライト!F17', 'PLハイライト!F17/2', 'PLハイライト!G17'),
+      ('修正後営業利益', None, None, None),
+      ('減価償却費', 'PLハイライト!F15', 'PLハイライト!G41', 'PLハイライト!G15'),
+      ('修正後EBITDA', None, None, None),
+      ('税考慮額（実効税率34%）', None, None, None),
+      ('修正後税考慮後営業利益', None, None, None)]
+for i, (lab, f, g, h) in enumerate(by_pl):
+    r = 4 + i
+    bold = lab in ('修正後営業利益', '修正後EBITDA', '修正後税考慮後営業利益')
+    put(f'E{r}', lab, 'bl' if bold else 'l')
+    for c, src in zip('FGH', (f, g, h)):
+        if src:
+            put(f'{c}{r}', f'={src}', 'bn' if bold else 'n')
+    if lab == '修正後営業利益':
+        for c in 'FGH': put(f'{c}{r}', f'={c}4+{c}5', 'bn')
+    if lab == '修正後EBITDA':
+        for c in 'FGH': put(f'{c}{r}', f'={c}6+{c}7', 'bn')
+    if lab.startswith('税考慮額'):
+        for c in 'FGHI': put(f'{c}{r}', f'=-{c}6*0.34', 'n')
+    if lab == '修正後税考慮後営業利益':
+        for c in 'FGHI': put(f'{c}{r}', f'={c}6+{c}9', 'bn')
+    if lab not in ('税考慮額（実効税率34%）', '修正後税考慮後営業利益'):
+        put(f'I{r}', f'=F{r}-G{r}+H{r}', 'bn' if bold else 'n')
+put('G12', '基準営業利益（LTM・税考慮後）', 'hl'); by.merge_cells('G12:H12'); put('I12', '=I10', 'hn')
+put('G13', '基準EBITDA（LTM）', 'hl'); by.merge_cells('G13:H13'); put('I13', '=I8', 'hn')
+# --- 年買法（営業権2〜4年）
+for c, t in zip('KLMN', ['営業権倍率', 'x2', 'x3', 'x4']):
+    put(f'{c}3', t, 'h')
+put('K4', '時価純資産', 'l'); put('K5', '営業権', 'l'); put('K6', '想定株式価値', 'tl')
+for c, mlt in zip('LMN', (2, 3, 4)):
+    put(f'{c}4', '=$C$11', 'n'); put(f'{c}5', f'=$I$12*{mlt}', 'n'); put(f'{c}6', f'={c}4+{c}5', 'tn')
+# --- EV/EBITDAマルチプル（4〜6倍・ディスカウントなし）
+for c, t in zip('KLMN', ['マルチプル倍率', 'x4', 'x5', 'x6']):
+    put(f'{c}9', t, 'h')
+for r, lab in zip(range(10, 14), ['EV（EBITDA×倍率）', '非流動性ディスカウント', 'ネットキャッシュ', '想定株式価値']):
+    put(f'K{r}', lab, 'tl' if r == 13 else 'l')
+for c, mlt in zip('LMN', (4, 5, 6)):
+    put(f'{c}10', f'=$I$13*{mlt}', 'n'); put(f'{c}11', 0, 'n'); put(f'{c}12', '=$C$21', 'n')
+    put(f'{c}13', f'={c}10+{c}11+{c}12', 'tn')
+# --- ネットキャッシュ（2026/9末）
+put('B16', 'キャッシュライクアイテム', 'h'); put('C16', '金額', 'h'); put('E16', 'デットライクアイテム', 'h'); put('F16', '金額', 'h')
+put('B17', '現金及び預金', 'l'); put('C17', "='BS(借方)'!G6", 'n'); put('E17', '長期借入金', 'l'); put('F17', "='BS (貸方)'!G19", 'n')
+put('B18', '投資有価証券（上場株式・時価）', 'l'); put('C18', '=有価証券!F4', 'n'); put('E18', '未払法人税等（上期見込）', 'l'); put('F18', '=-C9', 'n')
+put('B19', '合計', 'bl'); put('C19', '=C17+C18', 'bn'); put('E19', '合計', 'bl'); put('F19', '=F17+F18', 'bn')
+put('B21', 'ネットキャッシュ', 'hl'); put('C21', '=C19-F19', 'hn')
+# --- 希望譲渡価格との比較
+put('B24', '項目', 'h'); put('C24', '金額', 'h')
+cmp_ = [('希望譲渡価格（売主様）', 120000000, 'bl', 'bn'),
+        ('時価純資産（2026/9末）', '=C11', 'l', 'n'),
+        ('希望価格に含まれる営業権', '=C25-C26', 'l', 'n'),
+        ('基準営業利益（LTM・税考慮後）', '=I12', 'l', 'n'),
+        ('営業権の年数（倍）', '=C27/C28', 'hl', 'hn'),
+        ('年買法の中央値（営業権3年）', '=M6', 'l', 'n'),
+        ('中央値との差（希望価格の割安額）', '=C30-C25', 'hl', 'hn'),
+        ('参考：土地を固評÷0.7で評価した場合の時価純資産（税効果後）', "=C11+ROUND(土地!E8*(1-0.34),0)", 'l', 'n')]
+for i, (lab, f, sl, sn) in enumerate(cmp_):
+    put(f'B{25 + i}', lab, sl); put(f'C{25 + i}', f, sn)
+by['C29'].number_format = '0.0"年"'
+put('B35', '2026年9月末', 'h'); put('C35', '金額', 'h')
+put('B36', 'キャッシュライク', 'l'); put('C36', '=C19', 'n')
+put('B37', 'デットライク', 'l'); put('C37', '=F19', 'n')
+put('B38', 'ネットキャッシュ', 'hl'); put('C38', '=C21', 'hn')
+by['B33'] = ('※2025年4〜9月の修正額は2026/3期の修正額の6/12で推計（役員報酬等は月額一定と想定）。'
+             '上期の法人税等は税引前利益×34%で見込計上。投資有価証券（フィデアHD）の9月末時点の保有継続は要確認。')
+by['B33'].font = Font(name=JP, size=9)
+for r in range(3, 39):
+    if by.row_dimensions[r].height is None:
+        by.row_dimensions[r].height = 22
+move_after('買手評価', '参照企業')
+
 ru = wb['ルール']
 ru['B16'] = '■ 本案件の運用（株式会社鶴岡中央青果）'; ru['B16'].font = Font(name=JP, size=11, bold=True, color=NAVY)
 RULES = ['本ファイルが唯一の数値ソース。企業概要書・評価書の数字は必ず本ファイルから貼る（パワポに直接打たない）。',
