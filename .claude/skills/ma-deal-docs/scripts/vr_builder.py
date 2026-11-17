@@ -287,16 +287,24 @@ def vr_text(shape, lines, size=None):
         hl.getparent().remove(hl)
 
 
-def set_range_chart(slide, wb, sheet='株式価値 '):
-    """P7のレンジ図（積上げ横棒：系列1＝下限・透明、系列2＝幅）をマスター『株式価値』から更新する。
+def set_range_chart(slide, wb=None, sheet='株式価値 ', ranges=None):
+    """P7のレンジ図（積上げ横棒：系列1＝下限・透明、系列2＝幅）を更新する。
+    既定はマスター『株式価値』の C4:D6。買手向け等で別の範囲を使うときは
+    ranges={'インカム': (lo, hi), 'マーケット': (lo, hi), 'コスト': (lo, hi)}（円）を渡す。
     値は円のまま渡す（軸の表示形式 #,##0, で千円表示。千円に割ると二重に縮む）。"""
     from pptx.chart.data import CategoryChartData
     ch = next(sh for sh in slide.shapes if sh.has_chart).chart
-    v = lambda a: wb[sheet][a].value or 0
+    cats = ['インカム', 'マーケット', 'コスト']
+    if ranges is None:
+        v = lambda a: wb[sheet][a].value or 0
+        mins, diffs = [v('C4'), v('C5'), v('C6')], [v('D4'), v('D5'), v('D6')]
+    else:
+        mins = [ranges.get(c, (0, 0))[0] for c in cats]
+        diffs = [ranges.get(c, (0, 0))[1] - ranges.get(c, (0, 0))[0] for c in cats]
     cd = CategoryChartData()
-    cd.categories = ['インカム', 'マーケット', 'コスト']
-    cd.add_series('min', [v('C4'), v('C5'), v('C6')])
-    cd.add_series('差', [v('D4'), v('D5'), v('D6')])
+    cd.categories = cats
+    cd.add_series('min', mins)
+    cd.add_series('差', diffs)
     ch.replace_data(cd)
     return ch
 
