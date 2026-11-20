@@ -375,6 +375,9 @@ for sh in sld(9).shapes:
         set_text(sh, '120,000千円')
 out = f'{S}/im/企業概要書_鶴岡中央青果_261115.pptx'
 import os; os.makedirs(f'{S}/im', exist_ok=True)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../.claude/skills/ma-deal-docs/scripts'))
+from im_builder import force_white_headers  # noqa: E402
+force_white_headers(prs)   # 見出し帯・中扉の白文字を明示の白に
 prs.save(out)
 scrub_doc_props(out, title='企業概要書')   # 作成者名・テンプレートの見出し一覧を除去
 print('saved', out, len(prs.slides))

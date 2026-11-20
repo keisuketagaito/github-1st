@@ -208,6 +208,8 @@ vr_text(sid(s, 8), [
     f'参考：土地を固定資産税評価額÷0.7で評価した場合でも時価純資産は{m(b("C32"))}百万円で、'
     f'希望譲渡価格は営業権約{b("C33"):.1f}年分に相当し、国内中小企業M&Aのボリュームゾーン（1〜3年）の範囲内となる。'], size=10)
 
+from vr_builder import force_white_headers  # noqa: E402
+force_white_headers(prs)
 prs.save(OUT)
 ip.scrub_doc_props(OUT, title='株式価値評価書（買手候補先様向け）')
 print('saved', OUT, len(prs.slides))

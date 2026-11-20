@@ -42,6 +42,7 @@
 - [ ] `validate.py <概要書.pptx> --original <ベース.pptx>` が PASSED
 - [ ] `check_confidential.py <概要書.pptx> <案件固有の禁止語…>` が0件（他社仲介名・NG先・前回価格・関係者名などを引数に渡す）
 - [ ] `strip_red_banners()` 済み（赤字の社内メモが残っていない）
+- [ ] 保存直前に `force_white_headers(prs)` を通した（見出し帯・中扉・右上の章名の白文字を明示の白に。継承の白は依頼者のPowerPointで黒く表示され、毎回手で直していた）
 - [ ] 保存後に `im_paste.scrub_doc_props()` を通した（作成者・最終更新者の個人名、前案件の見出し一覧を「ファイル＞情報」から消す。pptx・xlsxとも）
 - [ ] PDFも出力し、pptx・pdf・マスターを案件フォルダへ保存、コミット・プッシュした
 

@@ -216,6 +216,8 @@ ip.set_text(sid(s, 8), '・EBITDAは過去3年の加重平均を採用（5：3�
 ip.set_text(sid(s, 20), '・マルチプル倍率は国内中小企業M&Aの実務水準3～5倍を適用（参照企業倍率は要更新）')
 ip.set_text(sid(s, 21), '・非流動性ディスカウント30%を控除。ネットデットが事業価値を上回り算定値はマイナス')
 
+from vr_builder import force_white_headers  # noqa: E402
+force_white_headers(prs)
 prs.save(OUT)
 ip.scrub_doc_props(OUT, title='株式価値評価書')
 print('saved', OUT, len(prs.slides))

@@ -43,7 +43,7 @@ from im_builder import (  # noqa: F401  （評価書でもそのまま使う）
     NAVY, BLUE, PALE, GREY, BODY, NOTE, WHITE, RED, DARK, JP, NUM,
     rect, textbox, rich, set_text, set_title, set_lead, set_section,
     note, house_table, comment_box, clear_body, keep_slides, delete_slide,
-    duplicate_slide, strip_red_banners, fix_broken_pictures,
+    duplicate_slide, strip_red_banners, fix_broken_pictures, force_white_headers,
     fmt, pct, k, _ph, _apply_font, no_bullet,
 )
 
@@ -71,7 +71,9 @@ def open_vr_template(path: str | None = None) -> Presentation:
     tmp = tempfile.NamedTemporaryFile(suffix='.pptx', delete=False)
     tmp.close()
     shutil.copyfile(src, tmp.name)
-    return Presentation(tmp.name)
+    prs = Presentation(tmp.name)
+    force_white_headers(prs)        # 見出し帯・中扉の白文字を明示の白に（依頼者のPowerPointで黒く出るため）
+    return prs
 
 
 # ----------------------------------------------------------------- 表紙

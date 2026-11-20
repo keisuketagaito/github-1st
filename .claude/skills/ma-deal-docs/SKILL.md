@@ -233,6 +233,7 @@ print('変更スライド:', [i+1 for i, (x, y) in enumerate(zip(a.slides, b.sli
 | `pptx_table.py` | 既存の表を壊さずに編集（セル差し替え・列／行の追加・表の複製）と構造チェック `check_tables` |
 | `registry_parse.py` | 登記簿謄本PDFを一括解析（所有者・取得原因・地積・担保・共同担保目録） |
 | `render_check.py` | 全頁を描画して一覧画像を作る（目視チェック用） |
+| `im_builder.force_white_headers()` | 見出し帯・中扉・章名・図形スタイルの白文字（レイアウト継承／テーマ色bg1・lt1）を明示の白FFFFFFにする。`open_template`・`open_vr_template`・`open_nn_template` で自動実行。頁を足したあと保存直前にも呼ぶ |
 | `vr_prep.py` | 再計算後のマスターのVR→シート（修正BS・修正PL・修正SGA）の空行・未使用列を非表示にし、評価書に丸ごと貼れる形にする（`references/valuation.md`「評価書の作り方」） |
 | `check_confidential.py` | 買手向け資料への社内限情報の混入チェック |
 

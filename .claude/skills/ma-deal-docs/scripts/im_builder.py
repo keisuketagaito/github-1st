@@ -78,7 +78,9 @@ def open_template(path: str | None = None) -> Presentation:
     tmp = tempfile.NamedTemporaryFile(suffix='.pptx', delete=False)
     tmp.close()
     shutil.copyfile(src, tmp.name)
-    return Presentation(tmp.name)
+    prs = Presentation(tmp.name)
+    force_white_headers(prs)        # 見出し帯・中扉の白文字を明示の白に（依頼者のPowerPointで黒く出るため）
+    return prs
 
 
 def _sldIdLst(prs):
@@ -185,6 +187,85 @@ def strip_red_banners(prs) -> int:
             if red:
                 sh._element.getparent().remove(sh._element)
                 n += 1
+    return n
+
+
+def force_white_headers(prs) -> int:
+    """見出し帯・中扉の白文字を「明示の白（FFFFFF）」にする。戻り値は直した箇所の数。
+
+    テンプレートの白文字は、①タイトルのプレースホルダーがレイアウトの lstStyle（schemeClr bg1）から
+    継承する、②右上の章名などが schemeClr bg1 を指定する、の2通りで決まっている。LibreOffice では白く出るが、
+    依頼者の PowerPoint では黒文字で表示され、毎回手で白に直していた（2026/11）。継承やテーマ色に頼らず、
+    文字の書式に srgbClr FFFFFF を直接書く。open_template/open_vr_template と保存前に呼ぶ。
+    """
+    from pptx.oxml.ns import qn as _q
+    from lxml import etree as _et
+    A = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    n = 0
+
+    def _white(fill):
+        nonlocal n
+        for ch in list(fill):
+            fill.remove(ch)
+        _et.SubElement(fill, f'{{{A}}}srgbClr', val='FFFFFF')
+        n += 1
+
+    def _layout_white(sh, layout):
+        try:
+            idx, typ = sh.placeholder_format.idx, sh.placeholder_format.type
+        except Exception:
+            return False
+        for lp in layout.placeholders:
+            if lp.placeholder_format.idx == idx or lp.placeholder_format.type == typ:
+                d = lp._element.find('.//' + _q('a:lstStyle') + '/' + _q('a:lvl1pPr') + '/' + _q('a:defRPr'))
+                if d is not None:
+                    c = d.find(_q('a:solidFill') + '/' + _q('a:schemeClr'))
+                    return c is not None and c.get('val') in ('bg1', 'lt1')
+                return False
+        return False
+
+    for slide in prs.slides:
+        root = slide._element
+        # ① schemeClr bg1/lt1 で白を指定している文字 → 明示の白
+        for tag in ('a:rPr', 'a:defRPr', 'a:endParaRPr'):
+            for rp in root.iter(_q(tag)):
+                f = rp.find(_q('a:solidFill'))
+                if f is not None and f.find(_q('a:schemeClr')) is not None and f.find(_q('a:schemeClr')).get('val') in ('bg1', 'lt1'):
+                    _white(f)
+        # ①' 図形のスタイル（p:style/a:fontRef＝lt1/bg1）で白文字になっている図形 → 各ランに明示の白
+        for sp in root.iter(_q('p:sp')):
+            fr = sp.find(_q('p:style') + '/' + _q('a:fontRef'))
+            c = fr.find(_q('a:schemeClr')) if fr is not None else None
+            if c is None or c.get('val') not in ('lt1', 'bg1'):
+                continue
+            for r in sp.iter(_q('a:r')):
+                rp = r.find(_q('a:rPr'))
+                if rp is None:
+                    rp = _et.Element(_q('a:rPr')); r.insert(0, rp)
+                if rp.find(_q('a:solidFill')) is not None or rp.find(_q('a:gradFill')) is not None:
+                    continue
+                f = _et.Element(f'{{{A}}}solidFill')
+                ln = rp.find(_q('a:ln'))
+                (ln.addnext(f) if ln is not None else rp.insert(0, f))
+                _white(f)
+        # ② レイアウトから白を継承しているタイトル等 → 各ランに明示の白
+        for sh in slide.placeholders:
+            if not sh.has_text_frame or not _layout_white(sh, slide.slide_layout):
+                continue
+            for p in sh.text_frame.paragraphs:
+                for r in p.runs:
+                    rp = r._r.get_or_add_rPr()
+                    f = rp.find(_q('a:solidFill'))
+                    if f is None:
+                        f = _et.Element(f'{{{A}}}solidFill')
+                        ln = rp.find(_q('a:ln'))
+                        if ln is not None:
+                            ln.addnext(f)
+                        else:
+                            rp.insert(0, f)
+                    elif f.find(_q('a:srgbClr')) is not None and f.find(_q('a:srgbClr')).get('val') == 'FFFFFF':
+                        continue
+                    _white(f)
     return n
 
 

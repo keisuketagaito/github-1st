@@ -104,4 +104,7 @@ cp = prs.core_properties
 cp.title = '社内用プロセスレター'; cp.subject = ''; cp.keywords = ''; cp.comments = ''
 cp.author = '株式会社M&A承継機構'; cp.last_modified_by = '株式会社M&A承継機構'
 out = sys.argv[1]
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../.claude/skills/ma-deal-docs/scripts'))
+from im_builder import force_white_headers  # noqa: E402
+force_white_headers(prs)   # 見出し帯・中扉の白文字を明示の白に
 prs.save(out); print('saved', out, len(LEFT), len(RIGHT))
