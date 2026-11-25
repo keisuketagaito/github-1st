@@ -16,7 +16,7 @@ REPO = os.environ.get('REPO', os.path.abspath(os.path.join(os.path.dirname(__fil
 SK = os.path.join(REPO, '.claude', 'skills', 'ma-deal-docs')
 sys.path.insert(0, os.path.join(SK, 'scripts'))
 from openpyxl import load_workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter as CL
 from master_im_style import (im_sheet, cw, put, row, paste, note, write_paste_index, hide_cols,
                              KI, PI, YI, JP, NUM, NAVY, NOTE)
@@ -232,7 +232,7 @@ ROWS = [
     ('許認可', '労働者派遣事業（派14-300005）※売主の許可。事業譲渡では承継されないため\n譲受会社における許可が必要', 34),
     ('売上高', f'=TEXT({pl_}!E4/1000,"#,##0")&"千円（2026年11月期見込：12〜9月実績＋10〜11月見込）"', 19),
     ('売上総利益', f'=TEXT({pl_}!E6/1000,"#,##0")&"千円（同上、売上総利益率"&TEXT({pl_}!E7,"0.0%")&"）"', 19),
-    ('営業利益', f'=TEXT({pl_}!E11/1000,"#,##0")&"千円（本社共通費配賦後。配賦前の事業所利益は"&TEXT({pl_}!E8/1000,"#,##0")&"千円）"', 19),
+    ('事業所利益', f'=TEXT({pl_}!E8/1000,"#,##0")&"千円（2026年11月期見込。直近12か月実績は"&TEXT(事業価値!C8/1000,"#,##0")&"千円）"', 19),
     ('譲渡スキーム', '事業譲渡（希望譲渡対価：2,000万円）', 19),
     ('譲渡理由', '経営資源の選択と集中（不採算事業からの撤退ではない旨を売主より聴取）', 19),
 ]
@@ -315,6 +315,16 @@ row(ws, 15, 2, ['延べ稼働人月', f'={P("h_op", "FY24")}', f'={P("h_op", "FY
     ['lab'] + ['num'] * 5, fmts=[None] + [YI] * 5, height=19)
 row(ws, 16, 2, ['稼働1人月当たり売上高', '=C4/C15', '=D4/D15', '-', '=F4/F15', '=G4/G15'], ['lab'] + ['num'] * 5, fmts=[None] + [KI] * 5, height=19)
 row(ws, 17, 2, ['稼働1人月当たり売上総利益', '=C6/C15', '=D6/D15', '-', '=F6/F15', '=G6/G15'], ['lab'] + ['num'] * 5, fmts=[None] + [KI] * 5, height=19)
+# 依頼者指示（261125）：共通費の配賦は行わず、事業所利益で表示する → 共通販管費・営業利益の行は非表示（貼付しない）
+ws['B8'].value = '事業所利益'
+for c in 'BCDEFG':
+    x = ws[f'{c}8']
+    x.font = Font(name=x.font.name, size=x.font.sz, bold=True)
+    x.fill = PatternFill('solid', fgColor='E3E7E9')
+    x.border = Border(left=x.border.left, right=x.border.right, top=Side(style='thin', color=NAVY), bottom=Side(style='thin', color=NAVY))
+ws['B9'].value = '事業所利益率'
+for r_ in (10, 11, 12):
+    ws.row_dimensions[r_].hidden = True
 mark(ws, 'B2:G17', '財務ハイライト（P/L）', cell='A1')
 # 参考（貼付範囲外）：リード文・Comment用
 REF = [
@@ -357,7 +367,7 @@ DPL = [('派遣売上高', 'sales_d', 'lab'), ('売上高', 'sales', 'sub'),
        ('技術者給与手当', 'c_sal', 'lab'), ('技術者法定福利費', 'c_hw', 'lab'), ('技術者賞与引当金繰入額', 'c_bon', 'lab'),
        ('退職給付費用（概算）', 'c_ret', 'lab'), ('【労務費】', 'c_lab', 'gry'), ('旅費交通費', 'c_trv', 'lab'),
        ('売上原価', 'cogs', 'sub'), ('売上総利益', 'gp', 'sub'),
-       ('販売費及び一般管理費（事業部直接費）', 'sga', 'lab'), ('事業所利益（共通費配賦前）', 'op0', 'sub'),
+       ('販売費及び一般管理費（事業部直接費）', 'sga', 'lab'), ('事業所利益', 'op0', 'sub'),
        ('共通販管費（本社共通費の配賦）', 'alloc', 'lab'), ('営業利益（共通費配賦後）', 'op', 'gryb')]
 PP = [('C', 'D', 'FY24'), ('E', 'F', 'FY25'), ('G', 'H', 'FY26'), ('I', 'J', 'CUR')]
 for i, (lab, key, kd) in enumerate(DPL):
@@ -369,6 +379,12 @@ for i, (lab, key, kd) in enumerate(DPL):
         put(ws, rr, ord(a) - 64, f'={P(key, per)}', nk, fmt=KI, border=bd)
         put(ws, rr, ord(b) - 64, f'=IFERROR({a}{rr}/{a}$7,"")', nk, fmt='0.0%;△0.0%;"-"', size=9, border=bd)
     ws.row_dimensions[rr].height = 18
+for r_ in (18, 19):                     # 共通販管費・営業利益（依頼者指示261125：配賦しない）
+    ws.row_dimensions[r_].hidden = True
+for c in 'BCDEFGHIJ':
+    x = ws[f'{c}17']
+    x.fill = PatternFill('solid', fgColor='E3E7E9')
+    x.border = Border(left=x.border.left, right=x.border.right, top=Side(style='thin', color=NAVY), bottom=Side(style='thin', color=NAVY))
 mark(ws, 'B3:J19', '財務情報詳細｜損益計算書')
 note(ws, 21, '※事業部PL（売主の管理会計）。対象事業単独の貸借対照表はない。減価償却費の計上なし。')
 
@@ -453,7 +469,7 @@ put(ws, rr, 7, f'=F{rr}/F$5', 'num', fmt='0.0%', size=9)
 put(ws, rr, 8, '事業部PLの欄外に「人件費（加算）」として記載があり、上記の営業利益には含まれていない。\n販管費の本社給与手当等との重複の有無を含め、計上範囲は要確認', 'txt', size=8.5)
 ws.row_dimensions[rr].height = 30
 X_ROW = rr
-mark(ws, f'B3:H{rr}', '収益構造と共通費配賦')
+mark(ws, f'B3:H{rr}', '（概要書では不使用：261125依頼者指示により共通費の配賦を表示しない）')
 note(ws, rr + 2, '※金額は事業部PL（月次）の合計。2026/11期見込は10・11月の見込を含む。譲渡後の取扱いは現時点の当社の想定であり、譲渡対象の範囲とともに要確認。')
 
 # ======================================================================== 月次推移（グラフ元データ＋四半期表）
@@ -1033,6 +1049,59 @@ ws['D12'].value = '="売上高"&TEXT(PLハイライト!D4/1000,"#,##0")&"千円�
 mark(ws, f'B4:D{4 + len(HIS)}', '沿革')
 note(ws, 17, '※出所：会社案内（経営状況）、事業部PL、従業員一覧、公表決算。顧客数は顧客別売上資料の取引社数。')
 
+# ======================================================================== 事業価値の試算（買手向け：希望譲渡対価の水準を示す）
+# 依頼者方針（買手向け評価・鶴岡261120）：年買法、営業権1〜3年、基準は税考慮前の利益（LTM）。共通費は配賦しない（261125）。
+ws = new_sheet('事業価値', '事業価値の試算（買手向け参考。事業所利益ベース）', 'その他')
+cw(ws, {'B': 2.75, 'C': 1.25, 'D': 1.25, 'E': 5.75})
+put(ws, 3, 5, '(単位：千円)', 'unit', border=None)
+row(ws, 4, 2, ['項目', '直近12か月実績\n(2025/10〜2026/9)', '2026/11期見込\n(12〜9月実績＋見込)', '算定方法・前提'], 'hdr', size=9, height=30)
+LT = (MC[22], MC[33])            # 2025/10〜2026/9
+lt = lambda key: f'=SUM({SRC}!{LT[0]}{RR[key]}:{LT[1]}{RR[key]})'
+VROWS = [
+    ('sec', '【正常収益力】'),
+    ('売上高', lt('sales'), f'={P("sales", "FY26")}', '事業部PL（売主の管理会計）', 'lab'),
+    ('売上総利益', lt('gp'), f'={P("gp", "FY26")}', '売上高－技術者の人件費・旅費交通費', 'lab'),
+    ('事業所利益（＝EBITDA）', lt('op0'), f'={P("op0", "FY26")}', '売上総利益－事業部の販管費。減価償却費の計上なし。売主本社費用の配賦前', 'gryb'),
+    ('sec', '【年買法（コストアプローチ）】'),
+    ('承継する純資産', 0, 0, '運転資金（売掛金等）は譲渡対象外。承継する資産・負債がない想定のため0', 'lab'),
+    ('想定事業価値（下限：営業権1年）', '=C10+C8*1', '=D10+D8*1', '承継する純資産＋事業所利益×1年（税考慮前）', 'sub'),
+    ('想定事業価値（上限：営業権3年）', '=C10+C8*3', '=D10+D8*3', '承継する純資産＋事業所利益×3年（税考慮前）', 'sub'),
+    ('sec', '【参考：EV/EBITDAマルチプル法（マーケットアプローチ）】'),
+    ('EV（EBITDA×3倍）', '=C8*3', '=D8*3', '中小企業M&Aで一般的な倍率3〜5倍。非流動性ディスカウントなし（事業の取得価値）', 'lab'),
+    ('EV（EBITDA×5倍）', '=C8*5', '=D8*5', '承継する有利子負債・現預金がないためEV＝事業価値', 'lab'),
+    ('sec', '【希望譲渡対価との比較】'),
+    ('希望譲渡対価', 20000000, 20000000, '譲渡希望条件', 'lab'),
+    ('希望譲渡対価÷事業所利益', '=C17/C8', '=D17/D8', '希望譲渡対価が事業所利益（税考慮前）の何年分に当たるか', 'gryb'),
+    ('年買法の中央値（営業権2年）－希望譲渡対価', '=C10+C8*2-C17', '=D10+D8*2-D17', '年買法レンジの中央値（事業所利益×2年）が希望譲渡対価を上回る額', 'lab'),
+]
+r_ = 5
+for item in VROWS:
+    if item[0] == 'sec':
+        for c in range(2, 6):
+            put(ws, r_, c, item[1] if c == 2 else '', 'sub', size=9.5)
+        ws.merge_cells(f'B{r_}:E{r_}')
+        ws.row_dimensions[r_].height = 17
+    else:
+        lab, f1, f2, memo, kd = item
+        nk = {'lab': 'num', 'sub': 'subn', 'gryb': 'grybn'}[kd]
+        bd = 'box' if kd == 'gryb' else 'std'
+        fm = '0.00"年分"' if '÷' in lab else '#,##0,;△#,##0,;"0"'
+        put(ws, r_, 2, lab, kd if kd != 'sub' else 'lab', size=9.5, border=bd)
+        put(ws, r_, 3, f1, nk, fmt=fm, size=9.5, border=bd); put(ws, r_, 4, f2, nk, fmt=fm, size=9.5, border=bd)
+        put(ws, r_, 5, memo, 'txt', size=8.5, border=bd)
+        ws.row_dimensions[r_].height = 19
+    r_ += 1
+assert ws['B8'].value.startswith('事業所利益') and ws['B17'].value == '希望譲渡対価'
+mark(ws, f'B3:E{r_ - 1}', '事業価値の試算')
+note(ws, r_ + 1, '※事業所利益は事業部PLの売主本社費用の配賦前。事業部PL欄外の所長人件費（年約8.6百万円）は事業所利益に含まれていない（販管費との関係は要確認）。')
+note(ws, r_ + 2, '※営業権の年数・倍率は買手のM&A方針、取り組み意欲、想定シナジー等によって変動する。試算は買手の検討の目安であり、価格の妥当性を保証するものではない。')
+# 参考（貼付範囲外）
+ws[f'B{r_ + 4}'] = '■ 参考（貼付範囲外）'; ws[f'B{r_ + 4}'].font = Font(name=JP, size=10, bold=True, color=NAVY)
+ws[f'B{r_ + 5}'] = '営業権の税務上の償却（資産調整勘定・5年均等）：年間損金算入額'; ws[f'C{r_ + 5}'] = '=C17/5'
+ws[f'B{r_ + 6}'] = '同 税効果（実効税率34%）：年額'; ws[f'C{r_ + 6}'] = '=C17/5*0.34'
+for a_ in (f'C{r_ + 5}', f'C{r_ + 6}'):
+    ws[a_].number_format = '#,##0'
+
 # ======================================================================== 参考｜譲渡対価と人材・顧客基盤の対比
 ws = new_sheet('対価対比', '参考｜譲渡希望対価と人材・顧客基盤・採算の対比', 'その他')
 cw(ws, {'B': 3.0, 'C': 1.2, 'D': 5.6})
@@ -1047,8 +1116,8 @@ VAL = [
     ('入社1名当たり採用関連費', '=C8/C9', '採用関連費÷入社数（退職者の採用費を含む）', '#,##0,"千円"'),
     ('売上総利益（2026/11期見込）', '=PLハイライト!E6', '事業部PL', '#,##0,"千円"'),
     ('希望譲渡対価÷売上総利益', '=C5/C11', '', '0.00"倍"'),
-    ('事業所利益（共通費配賦前、2026/11期見込）', '=PLハイライト!E8', '事業部PL。譲受会社側の管理コストは控除していない', '#,##0,"千円"'),
-    ('希望譲渡対価÷事業所利益', '=C5/C13', '', '0.00"倍"'),
+    ('事業所利益（直近12か月実績）', '=事業価値!C8', '事業部PL（2025/10〜2026/9）', '#,##0,"千円"'),
+    ('希望譲渡対価÷事業所利益', '=C5/C13', '事業所利益の何年分に相当するか', '0.00"年分"'),
 ]
 for i, (a, b, c, fm) in enumerate(VAL):
     rr = 5 + i
@@ -1064,7 +1133,7 @@ ws = new_sheet('要確認事項', '要確認事項・ネクストステップ（
 cw(ws, {'B': 1.2, 'C': 8.6, 'D': 0.8})
 row(ws, 4, 2, ['分野', '確認事項', '優先度'], 'hdr', size=9.5, height=19)
 TODO = [
-    ('収益性', '共通販管費（本社共通費の配賦、売上高比約12%）の内訳と配賦基準。譲渡後に不要となる費用・譲受会社で必要となる費用の切り分け', '高'),
+    ('収益性', '譲渡後に譲受会社で必要となる管理機能（給与計算・社会保険・勤怠・請求・派遣元責任者）の範囲と、譲受会社の既存体制で吸収できる範囲', '高'),
     ('収益性', '事業部PL欄外の所長人件費（年約8.6百万円）と販管費の本社給与手当等（同約4.5百万円）の関係（重複・配賦の有無）', '高'),
     ('収益性', '2026年10・11月の見込値の実績化（顧客別売上の10月実績は事業部PLの見込を約3.5百万円下回る）', '高'),
     ('人員', '転籍の条件（給与・賞与・退職給付・有給残日数・勤続通算）と、従業員への説明・同意取得の進め方', '高'),
