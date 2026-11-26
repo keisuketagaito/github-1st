@@ -73,8 +73,9 @@ ib.keep_slides(prs, [1, 2, 5, 6, 7, 8, 10, 12, 18, 20, 34, 35, 36])
 ib.strip_red_banners(prs)
 ib.fix_broken_pictures(prs)
 remove_yellow(prs); remove_null_pics(prs); remove_watermark(prs)
+ib.duplicate_slide(prs, 3, after=2)                               # 「対象会社の強み」頁（P/L頁の枠を複製）を基本情報の次へ
 S = list(prs.slides)
-(S_COV, S_INTRO, S_BASIC, S_PL, S_BS, S_COND, S_BIZ, S_FEAT, S_SH, S_SITE, S_TODO, S_FEE, S_END) = S
+(S_COV, S_INTRO, S_BASIC, S_STR, S_PL, S_BS, S_COND, S_BIZ, S_FEAT, S_SH, S_SITE, S_TODO, S_FEE, S_END) = S
 CM_HEAD, CM_BODY = shape_by_id(S_PL, 8), shape_by_id(S_PL, 9)     # Comment枠の見本（他頁へ複製する）
 
 # 期の表記
@@ -121,7 +122,7 @@ set_lead(s, f'東海地方で業歴20年超の引越専業会社。個人向け�
 yb = paste(s, '会社概要!B2:C15', 0.34, 2.06, 6.41, 0.83, target=5.0)
 comment(s, CM_HEAD, CM_BODY, 6.95, 1.66, 4.40, yb - 1.66, [
     '≪地域で選ばれる引越会社≫',
-    '・オリコン顧客満足度調査（引越し会社）の地域別ランキングで第1位（8年連続と売主説明。部門・年数は公表資料で確認中）。',
+    '・オリコン顧客満足度®調査（引越し会社）の地域別「東海」で8年連続1位、都道府県別「愛知県」でも3年連続1位。',
     '≪紹介と直接受注の両輪≫',
     f'・不動産仲介・住宅関連企業等からの紹介受注に加え、Web等の直接受注。紹介手数料は年{M(referral[-1])}百万円（{Y[-1]}）。',
     '≪引越事業への集中と収益改善≫',
@@ -132,6 +133,63 @@ comment(s, CM_HEAD, CM_BODY, 6.95, 1.66, 4.40, yb - 1.66, [
     '・未収入金の一部（取引先の倒産分）の処理、車両の台数・保有形態、関係会社（福祉事業）との関係、役員報酬の内訳。',
 ])
 place(shape_by_id(s, 2), 0.34, 1.66)
+
+# ================================================================ 3' 対象会社の強み（外部評価＋強みの源泉）
+s = S_STR
+for sh in list(s.shapes):                                        # 複製したP/L頁の中身を消し、枠（タイトル・字幕・章名）だけ残す
+    if not (sh.is_placeholder or sh.name == 'タイトル 1'):
+        sh._element.getparent().remove(sh._element)
+title(s, '対象会社の強み')
+OR = lambda a: v('オリコン実績', a)
+n_tokai, n_aichi, n_resp, n_cos = OR('C21'), OR('C22'), OR('C23'), OR('C24')
+yrs = [(OR(f'B{r}'), OR(f'C{r}'), OR(f'D{r}')) for r in range(5, 13)]
+set_lead(s, f'オリコン顧客満足度®調査（引越し会社）の地域別「東海」で{n_tokai}年連続1位。全国展開の大手を抑えて、'
+            '東海地方で顧客満足度No.1の引越会社として選ばれ続けている。')
+X, W_ = 0.34, 6.55
+ib.section_bar(s, X, 1.62, W_, '顧客満足度 東海No.1｜オリコン顧客満足度®調査「引越し会社」', size=12)
+TILES = [('地域別「東海」', f'{n_tokai}年連続 1位', f'{yrs[0][0][:4]}〜{yrs[-1][0][:4]}年版'),
+         ('都道府県別「愛知県」', f'{n_aichi}年連続 1位', f'{int(yrs[-1][0][:4]) - n_aichi + 1}〜{yrs[-1][0][:4]}年版'),
+         (f'{yrs[-1][0]}の調査規模', f'{n_resp:,}名', f'利用者アンケート・対象{n_cos}社')]
+tw, gap = (W_ - 0.24) / 3, 0.12
+for i, (h1, big, sub) in enumerate(TILES):
+    tx = X + i * (tw + gap)
+    ib.rect(s, tx, 2.13, tw, 1.12, fill=ib.PALE, line=ib.GREY)
+    ib.textbox(s, tx, 2.20, tw, 0.24, h1, size=9.5, bold=True, color=ib.NAVY, align=ib.PP_ALIGN.CENTER)
+    ib.textbox(s, tx, 2.45, tw, 0.48, big, size=22 if i < 2 else 20, bold=True, color=ib.NAVY,
+               align=ib.PP_ALIGN.CENTER)
+    ib.textbox(s, tx, 2.95, tw, 0.22, sub, size=8, color=ib.NOTE, align=ib.PP_ALIGN.CENTER)
+# 年版ごとの順位と得点（帯）
+ib.textbox(s, X, 3.40, W_, 0.24, '地域別「東海」の順位と得点（各年版）', size=9.5, bold=True, color=ib.NAVY)
+bw = (W_ - 0.07 * 7) / 8
+for i, (y_, rk, sc) in enumerate(yrs):
+    bx = X + i * (bw + 0.07)
+    ib.rect(s, bx, 3.68, bw, 0.24, fill=ib.NAVY)
+    ib.textbox(s, bx, 3.70, bw, 0.20, y_.replace('年版', ''), size=8.5, bold=True, color=ib.WHITE,
+               align=ib.PP_ALIGN.CENTER, font=ib.NUM)
+    ib.rect(s, bx, 3.92, bw, 0.62, fill=ib.WHITE, line=ib.GREY)
+    ib.textbox(s, bx, 3.96, bw, 0.28, rk, size=13, bold=True, color=ib.NAVY, align=ib.PP_ALIGN.CENTER)
+    ib.textbox(s, bx, 4.27, bw, 0.22, f'{sc:.2f}'.rstrip('0').rstrip('.') if sc else '－', size=8.5,
+               color=ib.NOTE, align=ib.PP_ALIGN.CENTER, font=ib.NUM)
+# 2025年版の上位3社（マスターの貼付範囲）
+ib.textbox(s, X, 4.72, W_, 0.24, '大手を上回る評価：2025年版 地域別「東海」の上位3社', size=9.5, bold=True, color=ib.NAVY)
+yb = paste(s, 'オリコン実績!B15:D18', X, 5.00, W_, 0.83)
+note(s, X, yb + 0.12, W_, [
+    '※出典：オリコン顧客満足度®調査「引越し会社」各年版の地域別「東海」ランキング（2026年版は2026年1月5日発表、'
+    f'回答{n_resp:,}名・{n_cos}社）、オリコンニュース（2026年2月11日）。2026年版の得点は確認中。',
+    '※得点は満点100点。順位は調査対象の引越し会社（サービス）内での順位。'], size=7.5)
+# 右：強みの源泉と買手にとっての意味
+ib.kv_boxes(s, 7.06, 1.62, 4.29, [
+    ('① 紹介が途切れない受注基盤',
+     f'不動産仲介・住宅関連企業等からの紹介受注とWeb等の直接受注の両輪。紹介手数料は年{M(referral[-1])}百万円（{Y[-1]}）。'),
+    ('② 作業品質を揃える社内研修',
+     '社内研修で作業品質を標準化。高い満足度がリピート・口コミ・紹介元からの再送客を生む。'),
+    ('③ ワンストップの付帯サービス',
+     '電気工事（エアコン等）・ハウスクリーニング・ピアノ輸送・不用品回収まで一括で受け、1件当たりの付加価値を高める。'),
+    ('④ 引越に集中した収益構造',
+     f'周辺事業から撤退し、外注・臨時人員と販管費を見直し。{Y[-1]}の粗利率{P(gp[-1] / sales[-1])}、進行期は営業利益約{M(op_fc)}百万円の見込み（売主説明）。'),
+    ('⑤ 買手にとっての意味（弊社の評価）',
+     '東海で最も支持されるブランドと顧客基盤を獲得できる。自社の車両・人員と組み合わせれば繁忙期の受注の取りこぼしを減らせる。'),
+], box_h=0.98, gap=0.06, head='強みの源泉と買手にとっての意味')
 
 # ================================================================ 4 財務ハイライト（P/L）
 s = S_PL
@@ -255,7 +313,7 @@ band(shape_by_id(s, 14), '地域密着の引越専業として20年超',
      '東海地方で個人の引越を主力に、オフィス・医療機関の移転まで対応。電気工事・ハウスクリーニング等の付帯サービスを'
      'ワンストップで提供。家電FC店・一般貨物運送から撤退し、経営資源を引越事業に集中した。')
 band(shape_by_id(s, 20), '顧客満足度の高さと紹介ルート',
-     'オリコン顧客満足度調査（引越し会社）の地域別ランキングで第1位（8年連続と売主説明。部門・年数は確認中）。'
+     'オリコン顧客満足度®調査（引越し会社）の地域別「東海」で8年連続1位、「愛知県」でも3年連続1位（2026年版）。'
      '社内研修で作業品質を標準化し、不動産仲介・住宅関連企業等からの紹介受注とリピートにつなげている。')
 band(shape_by_id(s, 29), '受注チャネルの再構築と内製化による伸び代',
      '法人の個別訪問営業を縮小しWeb受注へ移行したが、移行後は受注が伸び悩んでいる。法人・紹介ルートの再強化、'
