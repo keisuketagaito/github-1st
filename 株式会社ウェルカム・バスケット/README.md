@@ -12,8 +12,10 @@
 python build_master.py                       # → 案件マスター_raw.xlsx（決算書小計との一致を assert）
 cp 案件マスター_raw.xlsx /tmp/calc.xlsx && python ../.claude/skills/ma-deal-docs/scripts/recalc.py /tmp/calc.xlsx
 python ../.claude/skills/ma-deal-docs/scripts/inject_cache.py 案件マスター_raw.xlsx /tmp/calc.xlsx 案件マスター_ウェルカム・バスケット.xlsx
+python -c "import sys; sys.path.insert(0,'../.claude/skills/ma-deal-docs/scripts'); from im_paste import scrub_doc_props; scrub_doc_props('案件マスター_ウェルカム・バスケット.xlsx', title='案件マスター')"
 python build_nonname.py                      # check_anonymity で社名等の残存ゼロを assert
 python build_teaser.py <ティーザー雛形.pptx>   # 雛形は依頼者から受領したもの（別案件の情報を含むためリポジトリには置かない）
+# ノンネーム・ティーザーとも、保存前に force_white_headers、保存後に scrub_doc_props を通している（スキル更新 2026/11）
 ```
 
 出典：決算報告書（第23〜25期。2022年12月期は第23期の前期欄）。外部調査報告書は社外極秘のため、買手向け資料には決算書・登記・公開情報で裏付けた事実のみを使用。

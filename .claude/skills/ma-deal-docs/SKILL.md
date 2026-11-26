@@ -25,7 +25,7 @@ description: >
 |---|---|---|---|---|
 | 案件マスター | `master_template.xlsx`（公式0925版・既知の不具合修正済み） | `master_im_style.py` `inject_cache.py` `xlsx_xml.py` | `master-sheets.md` `im-design.md` §7 | 鶴岡中央青果 261027 |
 | 企業概要書（IM） | `im_template.pptx` | `im_builder.py`（頁枠・部品）＋`im_paste.py`（表の貼付） | `im-design.md` `im-structure.md` `quality-checklist.md` | 鳥塚（水産養殖業／関西）・鶴岡中央青果 261027 |
-| 株式価値評価書（VR） | `vr_template.pptx` | `vr_builder.py` | **`ma-valuation` スキル**（正本）＋`valuation.md` | カナリア（260729） |
+| 株式価値評価書（VR） | `vr_template.pptx` | `vr_prep.py`（マスター整理）＋`vr_builder.py`（`vr_paste` ほか） | **`ma-valuation` スキル**（正本）＋`valuation.md`「評価書の作り方」 | 鳥塚（260708）・鶴岡中央青果（261116） |
 | ノンネームシート | `nonname_template.pptx`（A4縦1枚） | `nn_builder.py` | `nonname.md` | 鶴岡中央青果（261015） |
 
 完成形の実例と作り方：`examples/tsuruoka_261027/README.md`（依頼者が「めちゃ良い感じ」と評価した概要書の作成手順と、
@@ -64,7 +64,7 @@ Confidential表記・ページ番号・報酬体系ページが入っており�
 | 5 | **表はマスターの貼付範囲を貼る** | `im_paste.paste_range()`（公式マスターは fscale/hscale で縮める） | パワポに数字を打たない。リード文・Commentの数字もマスターから読む |
 | 6 | 文章を書く | `set_lead()`（2行以内）、テンプレートのComment枠に `fill_comment()`、図解は `im_builder` の部品 | ≪見出し≫＋・本文。「だから何なのか」を書く |
 | 7 | 描画して直す | `scripts/render_check.py` | 折返し・重なり・字幕3行・表のずれがなくなるまで繰り返す（通常3〜4周） |
-| 8 | 検査・納品 | `validate.py --original`、`check_confidential.py`、`quality-checklist.md` | pptx・pdf・マスターを案件フォルダへ保存しコミット・プッシュ。要確認事項と依頼者の判断事項を報告 |
+| 8 | 検査・納品 | `im_paste.scrub_doc_props()`、`validate.py --original`、`check_confidential.py`、`quality-checklist.md` | pptx・pdf・マスターを案件フォルダへ保存しコミット・プッシュ。要確認事項と依頼者の判断事項を報告 |
 
 **表の作り方の優先順位：**数字を含む表は必ずマスターの貼付範囲（`paste_range`）。数字を含まない表（許認可・沿革・補足等）もマスターに置いて貼るのが原則。
 `im_builder.house_table()` で行データから直接組むのは、マスターに置く意味のない補助的な表だけに限る。
@@ -223,7 +223,7 @@ print('変更スライド:', [i+1 for i, (x, y) in enumerate(zip(a.slides, b.sli
 | ファイル | 用途 |
 |---|---|
 | `im_builder.py` | テンプレートを開く・頁の取捨と複製・赤帯除去・壊れた画像参照の除去・頁枠（タイトル／字幕／セクション名）・ハウス部品（Commentボックス・カード・特徴バンド・ポイント帯・写真タイル・簡易グラフ） |
-| `im_paste.py` | マスターの貼付範囲をパワポの表として貼る（`paste_range`：非表示の行列を除外、テーマ色・表示形式を再現）、リード文・Comment・注記 |
+| `im_paste.py` | マスターの貼付範囲をパワポの表として貼る（`paste_range`：非表示の行列を除外、テーマ色・表示形式を再現）、リード文・Comment・注記、`scrub_doc_props`（保存後にファイルのプロパティから個人名・前案件の見出し一覧を除去） |
 | `master_im_style.py` | マスターIM→シートの貼付範囲を鳥塚準拠の書式で組む、列幅定義の分解（`ungroup_cols`）と非表示（`hide_cols`）、行書式のコピー |
 | `inject_cache.py` | LibreOfficeで再計算した値を、書式を保ったまま元のマスターへ書き戻す |
 | `recalc.py` | マスターを再計算してキャッシュ値を書き戻す（簡易版） |
@@ -233,6 +233,8 @@ print('変更スライド:', [i+1 for i, (x, y) in enumerate(zip(a.slides, b.sli
 | `pptx_table.py` | 既存の表を壊さずに編集（セル差し替え・列／行の追加・表の複製）と構造チェック `check_tables` |
 | `registry_parse.py` | 登記簿謄本PDFを一括解析（所有者・取得原因・地積・担保・共同担保目録） |
 | `render_check.py` | 全頁を描画して一覧画像を作る（目視チェック用） |
+| `im_builder.force_white_headers()` | 見出し帯・中扉・章名・図形スタイルの白文字（レイアウト継承／テーマ色bg1・lt1）を明示の白FFFFFFにする。`open_template`・`open_vr_template`・`open_nn_template` で自動実行。頁を足したあと保存直前にも呼ぶ |
+| `vr_prep.py` | 再計算後のマスターのVR→シート（修正BS・修正PL・修正SGA）の空行・未使用列を非表示にし、評価書に丸ごと貼れる形にする（`references/valuation.md`「評価書の作り方」） |
 | `check_confidential.py` | 買手向け資料への社内限情報の混入チェック |
 
 ## バックアップと他のチャットでの利用

@@ -13,6 +13,8 @@ SK = os.path.join(HERE, '..', '.claude', 'skills', 'ma-deal-docs')
 sys.path.insert(0, os.path.join(SK, 'scripts'))
 from nn_builder import *  # noqa: E402,F401
 from openpyxl import load_workbook  # noqa: E402
+from im_builder import force_white_headers  # noqa: E402
+from im_paste import scrub_doc_props  # noqa: E402
 
 OUT = os.path.join(HERE, 'ノンネームシート_引越運送業_東海_261104.pptx')
 
@@ -102,5 +104,7 @@ place_table(find_table(prs, '譲渡理由'), y=8.03, heights=[0.36, 0.36, 0.36])
 
 ng = check_anonymity(prs, BANNED)
 assert not ng, ng
+force_white_headers(prs)        # 見出しの白文字を明示の白に（依頼者のPowerPointで黒く出るため。スキル更新 2026/11）
 prs.save(OUT)
+scrub_doc_props(OUT, title='ノンネームシート')   # ファイルのプロパティから作成者名・前案件の見出し一覧を消す
 print('saved', OUT)

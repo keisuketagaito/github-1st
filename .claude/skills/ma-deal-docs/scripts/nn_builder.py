@@ -59,7 +59,10 @@ def open_nn_template(path: str | None = None) -> Presentation:
     tmp = tempfile.NamedTemporaryFile(suffix='.pptx', delete=False)
     tmp.close()
     shutil.copyfile(src, tmp.name)
-    return Presentation(tmp.name)
+    prs = Presentation(tmp.name)
+    from im_builder import force_white_headers
+    force_white_headers(prs)        # 見出し帯の白文字を明示の白に（依頼者のPowerPointで黒く出るため）
+    return prs
 
 
 def _norm(t: str) -> str:

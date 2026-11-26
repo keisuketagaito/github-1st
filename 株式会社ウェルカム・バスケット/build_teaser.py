@@ -17,7 +17,8 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SK = os.path.join(HERE, '..', '.claude', 'skills', 'ma-deal-docs')
 sys.path.insert(0, os.path.join(SK, 'scripts'))
-from im_builder import (BLUE, BODY, GREY, NAVY, NOTE, PALE, WHITE, JP, NUM,  # noqa: E402
+from im_paste import scrub_doc_props  # noqa: E402
+from im_builder import (BLUE, BODY, GREY, NAVY, NOTE, PALE, WHITE, JP, NUM, force_white_headers,  # noqa: E402
                         duplicate_slide, fix_broken_pictures, house_table, rect,
                         rich, set_lead, set_text, strip_red_banners, textbox)
 from pptx_table import set_cell, check_tables  # noqa: E402
@@ -79,6 +80,7 @@ def yoy(i, s):
 
 # ================================================================ 雛形を開く
 prs = Presentation(SRC)
+force_white_headers(prs)
 strip_red_banners(prs)
 fix_broken_pictures(prs)
 S_COVER, S_INTRO, S_BASIC, S_SCHEME, S_END = [prs.slides[i] for i in range(5)]
@@ -351,5 +353,7 @@ txt = '\n'.join(sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.
 txt += '\n'.join(c.text for s in prs.slides for sh in s.shapes if sh.has_table for r_ in sh.table.rows for c in r_.cells)
 for w in ('東日本流通', '民事再生', '古橋', '千葉', '三井 尚輝', 'mitsui', '080-4342', '第二会社', '過剰債務', 'スポンサー'):
     assert w not in txt, '雛形（別案件）の情報が残っている: ' + w
+force_white_headers(prs)        # 追加した頁を含め、見出し帯・章名の白文字を明示の白に（スキル更新 2026/11）
 prs.save(OUT)
+scrub_doc_props(OUT, title='ティーザー')         # 雛形に残る前案件の作成者名・見出し一覧（<運送業/関東地区>等）を消す
 print('saved', OUT)

@@ -53,6 +53,12 @@ description: >
 5. 評価書23ページを組む → `references/report-structure.md`
 6. 検証する（下記）
 
+## 買手向け評価書
+
+売手向けとは目的が逆（希望譲渡価格が割安であることを示す）。株価を高く出す前提（進行期末基準・LTM・含み損の簿価評価・
+営業権2〜4年・倍率4〜6倍）を使うが、検証可能な前提に限り全て明記し、概要書の調整後EBITDAとは一致させる。
+P3「注意点」は載せない。詳細は `references/report-structure.md`「買手向け評価書」。
+
 ## 評価基準日の決め方
 
 **原則は直近の決算日（本決算）。**進行期の試算表は決算整理（減価償却・棚卸評価・引当）が
@@ -108,11 +114,14 @@ pdftoppm -jpeg -r 100 <評価書>.pdf page   # 全ページ目視
 | `references/adjust-pl.md` | 修正PL・修正SGA（正常収益力）を作るとき。調整項目と考え方 |
 | `references/methods.md` | 年買法・EV/EBITDAマルチプル法・超過利益法の算式 |
 | `references/report-structure.md` | 評価書のページを作る・直すとき。23ページの構成と定型文 |
-| `assets/valuation_report_template.pptx` | 当社フォーマットの評価書テンプレート（実案件・23ページ） |
+| `assets/valuation_report_template.pptx` | 完成見本（実案件・23ページ）。作成は `ma-deal-docs/assets/vr_template.pptx` から |
+| `ma-deal-docs/examples/tsuruoka_261116_vr/` | マスター貼付型で作った実例（鳥塚形式・24頁）。ビルドスクリプトと不具合の記録 |
 
 ## テンプレートの使い方
 
-`assets/valuation_report_template.pptx` を複製して中身を差し替える。
+**表はマスターのシートを丸ごと貼る（鳥塚・鶴岡中央青果の作り方）。**手順と頁ごとの貼付範囲は `ma-deal-docs/references/valuation.md`「評価書の作り方」。要約表を手で組む・旧版の数字だけ差し替える作り方は依頼者に差し戻された。
+
+**作成に使うのは `ma-deal-docs/assets/vr_template.pptx`（22頁の白紙テンプレート。`vr_builder.open_vr_template()` で開く）。**本スキルの `assets/valuation_report_template.pptx`（23頁）は完成見本として構成・文言の参照に使い、複製して数字を差し替える使い方はしない。
 スライドサイズはA4横（11.69×8.27インチ）で、概要書テンプレートと同じ。
 スライドの追加・削除・表の行数／列数の変更をする前に、必ず
 `ma-deal-docs/references/pptx-ops.md` を読むこと。
