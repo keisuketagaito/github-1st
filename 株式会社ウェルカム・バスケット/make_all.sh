@@ -12,6 +12,7 @@ python3 $SK/recalc.py "$TMP/calc.xlsx"
 python3 $SK/inject_cache.py 案件マスター_raw2.xlsx "$TMP/calc.xlsx" 案件マスター_ウェルカム・バスケット.xlsx
 python3 -c "import sys; sys.path.insert(0,'$SK'); from im_paste import scrub_doc_props; scrub_doc_props('案件マスター_ウェルカム・バスケット.xlsx', title='案件マスター')"
 rm -f 案件マスター_raw.xlsx 案件マスター_raw2.xlsx
+python3 prep_photos.py                       # HPの写真を切り出し（写真/ にあれば再取得しない）
 python3 build_nonname.py
 [ -n "$1" ] && python3 build_teaser.py "$1"
 python3 build_im.py

@@ -25,6 +25,8 @@ from im_paste import (comment, fill_comment, note, paste_range, place, range_hei
                       set_text, shape_by_id)
 from openpyxl import load_workbook  # noqa: E402
 from pptx.util import Inches  # noqa: E402
+from pptx.dml.color import RGBColor  # noqa: E402
+from pptx.enum.shapes import MSO_SHAPE  # noqa: E402
 from pptx.oxml.ns import qn  # noqa: E402
 
 OUT = os.path.join(HERE, '企業概要書_簡易版_ウェルカム・バスケット_261126.pptx')
@@ -73,9 +75,10 @@ ib.keep_slides(prs, [1, 2, 5, 6, 7, 8, 10, 12, 18, 20, 34, 35, 36])
 ib.strip_red_banners(prs)
 ib.fix_broken_pictures(prs)
 remove_yellow(prs); remove_null_pics(prs); remove_watermark(prs)
-ib.duplicate_slide(prs, 3, after=2)                               # 「対象会社の強み」頁（P/L頁の枠を複製）を基本情報の次へ
+ib.duplicate_slide(prs, 3, after=2)                               # 「東海No.1の引越会社」頁（P/L頁の枠を複製）を基本情報の次へ
+ib.duplicate_slide(prs, 4, after=3)                               # 「選ばれる理由」頁
 S = list(prs.slides)
-(S_COV, S_INTRO, S_BASIC, S_STR, S_PL, S_BS, S_COND, S_BIZ, S_FEAT, S_SH, S_SITE, S_TODO, S_FEE, S_END) = S
+(S_COV, S_INTRO, S_BASIC, S_STR, S_WHY, S_PL, S_BS, S_COND, S_BIZ, S_FEAT, S_SH, S_SITE, S_TODO, S_FEE, S_END) = S
 CM_HEAD, CM_BODY = shape_by_id(S_PL, 8), shape_by_id(S_PL, 9)     # Comment枠の見本（他頁へ複製する）
 
 # 期の表記
@@ -134,62 +137,144 @@ comment(s, CM_HEAD, CM_BODY, 6.95, 1.66, 4.40, yb - 1.66, [
 ])
 place(shape_by_id(s, 2), 0.34, 1.66)
 
-# ================================================================ 3' 対象会社の強み（外部評価＋強みの源泉）
-s = S_STR
-for sh in list(s.shapes):                                        # 複製したP/L頁の中身を消し、枠（タイトル・字幕・章名）だけ残す
-    if not (sh.is_placeholder or sh.name == 'タイトル 1'):
-        sh._element.getparent().remove(sh._element)
-title(s, '対象会社の強み')
+# ================================================================ 3' 東海No.1の引越会社（LP型：ヒーロー＋指標＋8年連続の軌跡）
+PHOTO = os.path.join(HERE, '写真')
+GOLD, GOLD_L = RGBColor(0xC9, 0xA2, 0x27), RGBColor(0xF6, 0xE7, 0xB0)
+BRAND_RED = RGBColor(0xD7, 0x1F, 0x2B)
 OR = lambda a: v('オリコン実績', a)
 n_tokai, n_aichi, n_resp, n_cos = OR('C21'), OR('C22'), OR('C23'), OR('C24')
+n_moves, founded = OR('C27'), OR('C28')
 yrs = [(OR(f'B{r}'), OR(f'C{r}'), OR(f'D{r}')) for r in range(5, 13)]
-set_lead(s, f'オリコン顧客満足度®調査（引越し会社）の地域別「東海」で{n_tokai}年連続1位。全国展開の大手を抑えて、'
-            '東海地方で顧客満足度No.1の引越会社として選ばれ続けている。')
-X, W_ = 0.34, 6.55
-ib.section_bar(s, X, 1.62, W_, '顧客満足度 東海No.1｜オリコン顧客満足度®調査「引越し会社」', size=12)
-TILES = [('地域別「東海」', f'{n_tokai}年連続 1位', f'{yrs[0][0][:4]}〜{yrs[-1][0][:4]}年版'),
-         ('都道府県別「愛知県」', f'{n_aichi}年連続 1位', f'{int(yrs[-1][0][:4]) - n_aichi + 1}〜{yrs[-1][0][:4]}年版'),
-         (f'{yrs[-1][0]}の調査規模', f'{n_resp:,}名', f'利用者アンケート・対象{n_cos}社')]
-tw, gap = (W_ - 0.24) / 3, 0.12
-for i, (h1, big, sub) in enumerate(TILES):
-    tx = X + i * (tw + gap)
-    ib.rect(s, tx, 2.13, tw, 1.12, fill=ib.PALE, line=ib.GREY)
-    ib.textbox(s, tx, 2.20, tw, 0.24, h1, size=9.5, bold=True, color=ib.NAVY, align=ib.PP_ALIGN.CENTER)
-    ib.textbox(s, tx, 2.45, tw, 0.48, big, size=22 if i < 2 else 20, bold=True, color=ib.NAVY,
-               align=ib.PP_ALIGN.CENTER)
-    ib.textbox(s, tx, 2.95, tw, 0.22, sub, size=8, color=ib.NOTE, align=ib.PP_ALIGN.CENTER)
-# 年版ごとの順位と得点（帯）
-ib.textbox(s, X, 3.40, W_, 0.24, '地域別「東海」の順位と得点（各年版）', size=9.5, bold=True, color=ib.NAVY)
-bw = (W_ - 0.07 * 7) / 8
+top3 = [(OR(f'B{r}'), OR(f'C{r}'), OR(f'D{r}')) for r in range(16, 19)]
+yr_now = int(yrs[-1][0][:4])
+
+
+def lp_frame(s, ttl):
+    """複製したP/L頁を白紙に戻す（タイトル・章名だけ残し、字幕も消してヒーローを広く使う）。"""
+    for sh in list(s.shapes):
+        keep = (sh.is_placeholder and sh.placeholder_format.idx == 0) or sh.name == 'タイトル 1'
+        if not keep:
+            sh._element.getparent().remove(sh._element)
+    title(s, ttl)
+
+
+def T(s, x, y, w, h, text, size, color=ib.BODY, bold=False, align=None, font=ib.JP, anchor=None):
+    return ib.textbox(s, x, y, w, h, text, size=size, bold=bold, color=color,
+                      align=align or ib.PP_ALIGN.LEFT, font=font, anchor=anchor or ib.MSO_ANCHOR.TOP)
+
+
+def medal(s, cx, cy, d):
+    """自作のNo.1メダル（オリコンのロゴは使わない。出典は注記に明記）。"""
+    for ang, col in ((-22, ib.BLUE), (22, BRAND_RED)):                 # リボン（帯の下端を越えない長さ）
+        r = ib.rect(s, cx - 0.22 + (0.30 if ang > 0 else -0.30), cy + d * 0.18, 0.44, d * 0.50, fill=col)
+        r.rotation = ang
+    ib.rect(s, cx - d / 2, cy - d / 2, d, d, fill=GOLD, line=GOLD_L, lw=3, shape=MSO_SHAPE.OVAL)
+    i = d * 0.84
+    ib.rect(s, cx - i / 2, cy - i / 2, i, i, fill=GOLD, line=ib.WHITE, lw=1, shape=MSO_SHAPE.OVAL)
+    T(s, cx - d / 2, cy - d * 0.33, d, 0.22, '顧客満足度', 9.5, ib.WHITE, True, ib.PP_ALIGN.CENTER)
+    T(s, cx - d / 2, cy - d * 0.20, d, 0.30, f'東海 {n_tokai}年連続', 12, ib.WHITE, True, ib.PP_ALIGN.CENTER)
+    T(s, cx - d / 2, cy - d * 0.04, d, 0.55, 'No.1', 34, ib.WHITE, True, ib.PP_ALIGN.CENTER, font=ib.NUM)
+
+
+s = S_STR
+lp_frame(s, '東海No.1の引越会社')
+# ヒーロー（紺の帯＋自社トラックの写真）
+ib.rect(s, 0.34, 0.98, 11.01, 2.58, fill=ib.NAVY)
+ib.photo_tile(s, os.path.join(PHOTO, 'fleet.jpg'), 6.45, 0.98, 4.90, 2.58, line=None)
+ib.rect(s, 0.34, 3.56, 11.01, 0.06, fill=GOLD)
+T(s, 0.70, 1.18, 5.0, 0.30, f'愛知・岐阜を中心に、東海地方で{yr_now - founded}年', 12.5, GOLD_L, True)
+T(s, 0.70, 1.52, 5.0, 0.62, '東海で、いちばん', 30, ib.WHITE, True)
+T(s, 0.70, 2.12, 5.0, 0.62, '選ばれる引越会社。', 30, ib.WHITE, True)
+T(s, 0.70, 2.80, 3.85, 0.50, f'オリコン顧客満足度®調査「引越し会社」\n地域別「東海」 {yrs[0][0][:4]}〜{yr_now}年版 第1位',
+  10, GOLD_L, False)
+medal(s, 5.55, 2.22, 2.0)
+# 指標（4枚）
+KPI = [(f'{n_tokai}', '年連続 No.1', '地域別「東海」顧客満足度'),
+       (f'{n_aichi}', '年連続 No.1', '都道府県別「愛知県」顧客満足度'),
+       (f'{n_moves // 10000}万', '件以上', '引越実績（同社HP）'),
+       (f'{yr_now - founded}', '年', f'{founded}年創業の地域密着')]
+kw = (11.01 - 0.15 * 3) / 4
+for i, (big, unit, lab) in enumerate(KPI):
+    x = 0.34 + i * (kw + 0.15)
+    ib.rect(s, x, 3.80, kw, 1.05, fill=RGBColor(0xF7, 0xF9, 0xFB), line=ib.GREY)
+    ib.rect(s, x, 3.80, kw, 0.06, fill=GOLD)
+    T(s, x + 0.15, 3.92, 1.35, 0.62, big, 34, ib.NAVY, True, ib.PP_ALIGN.RIGHT, font=ib.NUM)
+    T(s, x + 1.55, 4.20, kw - 1.6, 0.32, unit, 13, ib.NAVY, True)
+    T(s, x, 4.55, kw, 0.24, lab, 9, ib.NOTE, False, ib.PP_ALIGN.CENTER)
+# 8年連続の軌跡（年版ごとの順位と得点）
+T(s, 0.34, 5.02, 6.5, 0.28, f'{n_tokai}年連続 No.1の軌跡｜地域別「東海」の順位と得点', 11, ib.NAVY, True)
+ib.rect(s, 0.62, 5.95, 6.0, 0.03, fill=GOLD_L)
+step = 6.3 / len(yrs)
 for i, (y_, rk, sc) in enumerate(yrs):
-    bx = X + i * (bw + 0.07)
-    ib.rect(s, bx, 3.68, bw, 0.24, fill=ib.NAVY)
-    ib.textbox(s, bx, 3.70, bw, 0.20, y_.replace('年版', ''), size=8.5, bold=True, color=ib.WHITE,
-               align=ib.PP_ALIGN.CENTER, font=ib.NUM)
-    ib.rect(s, bx, 3.92, bw, 0.62, fill=ib.WHITE, line=ib.GREY)
-    ib.textbox(s, bx, 3.96, bw, 0.28, rk, size=13, bold=True, color=ib.NAVY, align=ib.PP_ALIGN.CENTER)
-    ib.textbox(s, bx, 4.27, bw, 0.22, f'{sc:.2f}'.rstrip('0').rstrip('.') if sc else '－', size=8.5,
-               color=ib.NOTE, align=ib.PP_ALIGN.CENTER, font=ib.NUM)
-# 2025年版の上位3社（マスターの貼付範囲）
-ib.textbox(s, X, 4.72, W_, 0.24, '大手を上回る評価：2025年版 地域別「東海」の上位3社', size=9.5, bold=True, color=ib.NAVY)
-yb = paste(s, 'オリコン実績!B15:D18', X, 5.00, W_, 0.83)
-note(s, X, yb + 0.12, W_, [
-    '※出典：オリコン顧客満足度®調査「引越し会社」各年版の地域別「東海」ランキング（2026年版は2026年1月5日発表、'
-    f'回答{n_resp:,}名・{n_cos}社）、オリコンニュース（2026年2月11日）。2026年版の得点は確認中。',
-    '※得点は満点100点。順位は調査対象の引越し会社（サービス）内での順位。'], size=7.5)
-# 右：強みの源泉と買手にとっての意味
-ib.kv_boxes(s, 7.06, 1.62, 4.29, [
-    ('① 紹介が途切れない受注基盤',
-     f'不動産仲介・住宅関連企業等からの紹介受注とWeb等の直接受注の両輪。紹介手数料は年{M(referral[-1])}百万円（{Y[-1]}）。'),
-    ('② 作業品質を揃える社内研修',
-     '社内研修で作業品質を標準化。高い満足度がリピート・口コミ・紹介元からの再送客を生む。'),
-    ('③ ワンストップの付帯サービス',
-     '電気工事（エアコン等）・ハウスクリーニング・ピアノ輸送・不用品回収まで一括で受け、1件当たりの付加価値を高める。'),
-    ('④ 引越に集中した収益構造',
-     f'周辺事業から撤退し、外注・臨時人員と販管費を見直し。{Y[-1]}の粗利率{P(gp[-1] / sales[-1])}、進行期は営業利益約{M(op_fc)}百万円の見込み（売主説明）。'),
-    ('⑤ 買手にとっての意味（弊社の評価）',
-     '東海で最も支持されるブランドと顧客基盤を獲得できる。自社の車両・人員と組み合わせれば繁忙期の受注の取りこぼしを減らせる。'),
-], box_h=0.98, gap=0.06, head='強みの源泉と買手にとっての意味')
+    cx = 0.34 + step * (i + 0.5)
+    T(s, cx - 0.4, 5.38, 0.8, 0.22, y_.replace('年版', ''), 9, ib.NAVY, True, ib.PP_ALIGN.CENTER, font=ib.NUM)
+    ib.rect(s, cx - 0.30, 5.66, 0.60, 0.60, fill=GOLD if i < len(yrs) - 1 else BRAND_RED, line=ib.WHITE, lw=1.5,
+            shape=MSO_SHAPE.OVAL)
+    T(s, cx - 0.30, 5.81, 0.60, 0.30, rk, 12, ib.WHITE, True, ib.PP_ALIGN.CENTER)
+    T(s, cx - 0.4, 6.32, 0.8, 0.22, (f'{sc:.2f}'.rstrip('0').rstrip('.') + '点') if sc else '－', 8.5, ib.NOTE,
+      False, ib.PP_ALIGN.CENTER, font=ib.NUM)
+# 2025年版 東海の上位3社
+X2, W2 = 7.05, 4.30
+T(s, X2, 5.02, W2, 0.28, f'全国大手を上回る評価｜{yrs[-2][0]} 東海の上位3社', 11, ib.NAVY, True)
+for i, (rk, nm, sc) in enumerate(top3):
+    y = 5.38 + i * 0.40
+    hi = i == 0
+    ib.rect(s, X2, y, W2, 0.34, fill=GOLD_L if hi else RGBColor(0xF7, 0xF9, 0xFB), line=GOLD if hi else ib.GREY)
+    T(s, X2 + 0.10, y + 0.05, 0.6, 0.26, rk, 11, ib.NAVY, True)
+    T(s, X2 + 0.70, y + 0.06, 2.8, 0.26, nm, 10.5, ib.NAVY if hi else ib.BODY, hi)
+    T(s, X2 + W2 - 0.95, y + 0.04, 0.85, 0.28, f'{sc:.1f}点', 11.5, ib.NAVY, True, ib.PP_ALIGN.RIGHT, font=ib.NUM)
+note(s, 0.34, 6.78, 11.0, [
+    f'※出典：オリコン顧客満足度®調査「引越し会社」各年版の地域別「東海」・都道府県別「愛知県」ランキング（{yr_now}年版は{yr_now}年1月5日発表、'
+    f'利用者{n_resp:,}名・{n_cos}社が対象）、オリコンニュース（{yr_now}年2月11日）。{yr_now}年版の「東海」の得点は確認中。メダルは弊社作成の図。',
+    f'※引越実績・創業は対象会社HP。写真は対象会社HPより（車庫に並ぶ自社トラック）。'], size=7.5)
+
+# ================================================================ 3'' 選ばれる理由（LP型：写真カード4枚＋買手にとっての意味）
+s = S_WHY
+lp_frame(s, '選ばれる理由')
+T(s, 0.34, 0.98, 11.0, 0.40, f'東海No.1を支える4つの強み', 18, ib.NAVY, True)
+T(s, 0.34, 1.38, 11.0, 0.26, '受注の入口（Web・紹介）から作業品質、暮らしのサポート、地域の拠点網まで、満足度を生む仕組みがそろっている。',
+  10.5, ib.BODY)
+CARDS = [
+    ('phone.jpg', 'Webと紹介で途切れない受注',
+     f'自社の確定見積り・予約サイト「スマっこし」やZoom見積りで、電話なしで予約まで完結。不動産仲介・住宅関連企業等からの紹介受注も厚く、'
+     f'紹介手数料は年{M(referral[-1])}百万円（{Y[-1]}）。'),
+    ('staff.jpg', '「やさしい」引越の作業品質',
+     '女性スタッフが対応する「シーズムービング」、作業前後の近隣へのご挨拶、搬入時の靴下はき替えなど、細かな作業ルールを徹底。社内研修で品質を標準化。'),
+    ('box.png', '暮らしまで支えるワンストップ',
+     '電気工事（エアコン等）・ハウスクリーニング・ピアノ輸送・不用品回収まで一括で対応。取っ手付きダンボール（同社HPでは引越業界初）など独自の工夫も。'),
+    (('branch_blue.jpg', 'branch_yellow.jpg'), '東海を網羅する拠点とブランド',
+     '本部（日進市）・名西（名古屋市中川区）・岐阜（岐南町）を中心に東海地方へ展開。自社キャラクターを使った広告で地域での認知度が高い。'),
+]
+cw_, gap = (11.01 - 0.12 * 3) / 4, 0.12
+for i, (ph_, head, body) in enumerate(CARDS):
+    x = 0.34 + i * (cw_ + gap)
+    ib.rect(s, x, 1.78, cw_, 3.98, fill=ib.WHITE, line=ib.GREY)
+    if isinstance(ph_, tuple):
+        hw = (cw_ - 0.04) / 2
+        ib.photo_tile(s, os.path.join(PHOTO, ph_[0]), x, 1.78, hw, 1.78, line=None)
+        ib.photo_tile(s, os.path.join(PHOTO, ph_[1]), x + hw + 0.04, 1.78, hw, 1.78, line=None)
+    elif ph_.endswith('.png'):                                     # 透過画像は淡色の地に収める
+        ib.rect(s, x, 1.78, cw_, 1.78, fill=RGBColor(0xEE, 0xF5, 0xFB))
+        s.shapes.add_picture(os.path.join(PHOTO, ph_), Inches(x + 0.35), Inches(1.95), Inches(cw_ - 0.7))
+    else:
+        ib.photo_tile(s, os.path.join(PHOTO, ph_), x, 1.78, cw_, 1.78, line=None)
+    ib.rect(s, x + 0.14, 3.33, 0.50, 0.50, fill=GOLD, line=ib.WHITE, lw=1.5, shape=MSO_SHAPE.OVAL)
+    T(s, x + 0.14, 3.43, 0.50, 0.30, f'{i + 1:02d}', 13, ib.WHITE, True, ib.PP_ALIGN.CENTER, font=ib.NUM)
+    T(s, x + 0.14, 3.92, cw_ - 0.28, 0.32, head, 12, ib.NAVY, True)
+    ib.textbox(s, x + 0.14, 4.32, cw_ - 0.28, 1.35, body, size=9.5, color=ib.BODY, line_sp=1.18)
+# 買手にとっての意味
+ib.rect(s, 0.34, 5.92, 11.01, 1.20, fill=ib.NAVY)
+T(s, 0.55, 6.02, 4.0, 0.28, '買手にとっての意味（弊社の評価）', 11, GOLD_L, True)
+MEAN = ['東海No.1のブランドと顧客基盤を一度に獲得できる',
+        'Web予約と紹介ルートで、広告に頼りすぎない集客構造',
+        '自社の車両・人員と組み合わせ、繁忙期（3月〜GW前）の受注の取りこぼしを減らせる']
+mw = (11.01 - 0.42) / 3
+for i, t_ in enumerate(MEAN):
+    x = 0.55 + i * mw
+    T(s, x, 6.36, 0.3, 0.6, '✓', 16, GOLD, True)
+    T(s, x + 0.32, 6.40, mw - 0.45, 0.66, t_, 10.5, ib.WHITE, True)
+note(s, 0.34, 7.22, 11.0, ['※写真・サービス内容は対象会社HPより。紹介手数料は決算書（運送原価）。「買手にとっての意味」は弊社の評価。'], size=7.5)
+
 
 # ================================================================ 4 財務ハイライト（P/L）
 s = S_PL
